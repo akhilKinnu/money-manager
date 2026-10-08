@@ -87,6 +87,14 @@
             <span id="cloudStatusText" class="truncate max-w-[110px] sm:max-w-none">Cloud Sync</span>
           </button>
 
+          <!-- Gmail Auto-Import Button -->
+          <button id="btnOpenGmailModal" title="Read & Import Transactions from Gmail" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30 cursor-pointer hover:bg-rose-500/25 transition-all">
+            <svg class="w-3.5 h-3.5 text-rose-400" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+            </svg>
+            <span class="hidden sm:inline">Gmail Import</span>
+          </button>
+
           <!-- Currency Picker -->
           <div class="relative">
             <select id="currencySelector" class="bg-slate-800/90 text-slate-200 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700/80 hover:border-slate-600 cursor-pointer">
@@ -399,6 +407,10 @@
         </div>
 
         <div class="flex items-center gap-2.5">
+          <button onclick="UI.openModal('gmailModal')" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition-colors">
+            <svg class="w-3.5 h-3.5 text-rose-400" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            Gmail Import
+          </button>
           <button onclick="window.exportImport.exportToCSV()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors">
             <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
             Export CSV
@@ -1180,6 +1192,157 @@
     </div>
   </div>
 
+  <!-- Modal 5: Gmail Expense Scanner & Auto-Import Modal -->
+  <div id="gmailModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm items-center justify-center p-4">
+    <div class="modal-box w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl transition-all transform scale-95 opacity-0 max-h-[92vh] flex flex-col">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-rose-500/15 text-rose-400 flex items-center justify-center border border-rose-500/25">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+              Gmail Expense Scanner & Auto-Import
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">Smart AI Parser</span>
+            </h3>
+            <p class="text-xs text-slate-400">Scan recent and previous bank alerts, UPI receipts, and statements directly into your ledger</p>
+          </div>
+        </div>
+        <button onclick="UI.closeModal('gmailModal')" class="text-slate-400 hover:text-white p-1 text-xl font-bold">&times;</button>
+      </div>
+
+      <!-- Scrollable Modal Body -->
+      <div class="flex-1 overflow-y-auto py-4 space-y-4 pr-1 text-xs">
+        
+        <!-- Connection & OAuth Setup Card -->
+        <div class="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="font-bold text-slate-200 text-xs flex items-center gap-1.5">
+              <span>🔑 Google Account Connection</span>
+            </span>
+            <div id="gmailConnectionStatus">
+              <span class="text-slate-400 text-xs">Not connected</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+            <div class="sm:col-span-8">
+              <input type="text" id="gmailClientIdInput" placeholder="Google OAuth Client ID (e.g. 123456-xxx.apps.googleusercontent.com)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 font-mono text-xs placeholder-slate-500">
+            </div>
+            <div class="sm:col-span-4">
+              <button id="btnConnectGmail" type="button" class="w-full h-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-semibold transition-colors flex items-center justify-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-rose-400" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                Authorize Gmail
+              </button>
+            </div>
+          </div>
+          <p class="text-[11px] text-slate-500">Uses official Google Identity Services with read-only permission (<code class="text-slate-400 font-mono">gmail.readonly</code>). Your emails are parsed 100% locally on your machine and never sent to any server.</p>
+        </div>
+
+        <!-- Scan Configuration Bar -->
+        <div class="p-4 rounded-2xl bg-slate-800/30 border border-slate-700/50 space-y-3">
+          <div class="font-bold text-slate-200 text-xs">🔎 Search & Timeframe Options</div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <!-- Timeframe selector -->
+            <div>
+              <label class="text-[11px] font-semibold text-slate-400">Select Timeframe</label>
+              <select id="gmailTimeframeSelect" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 font-medium cursor-pointer">
+                <option value="recent">Recent (Last 7 Days)</option>
+                <option value="30days" selected>Last 30 Days (Recommended)</option>
+                <option value="90days">Previous Emails: Last 90 Days</option>
+                <option value="all-previous">Previous Emails: Last 1 Year</option>
+                <option value="custom">Custom Date Range...</option>
+              </select>
+            </div>
+
+            <!-- Optional Bank / Merchant Keyword -->
+            <div class="sm:col-span-2">
+              <label class="text-[11px] font-semibold text-slate-400">Filter by Bank / Keyword (Optional)</label>
+              <input type="text" id="gmailCustomFilter" placeholder="e.g. HDFC, ICICI, SBI, PhonePe, Swiggy, Salary..." class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 placeholder-slate-500">
+            </div>
+          </div>
+
+          <!-- Custom Date Range Picker (shown when custom selected) -->
+          <div id="gmailCustomRangeGroup" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label class="text-[11px] font-semibold text-slate-400">Start Date</label>
+              <input type="date" id="gmailCustomStart" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-slate-200">
+            </div>
+            <div>
+              <label class="text-[11px] font-semibold text-slate-400">End Date</label>
+              <input type="date" id="gmailCustomEnd" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-slate-200">
+            </div>
+          </div>
+
+          <!-- Trigger Scan Button -->
+          <div class="pt-1">
+            <button id="btnStartGmailScan" type="button" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-bold transition-all shadow-md shadow-rose-600/20 flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              Scan Emails for Financial Transactions
+            </button>
+          </div>
+        </div>
+
+        <!-- Scan Progress Indicator (Hidden by default) -->
+        <div id="gmailScanProgress" class="hidden p-3.5 rounded-xl bg-slate-800/60 border border-slate-700 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span id="gmailProgressText" class="text-slate-300 font-medium">Scanning emails...</span>
+            <span class="text-indigo-400 font-mono animate-pulse">Processing</span>
+          </div>
+          <div class="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
+            <div id="gmailProgressBar" class="h-full rounded-full bg-gradient-to-r from-rose-500 to-indigo-500 transition-all duration-300" style="width: 15%"></div>
+          </div>
+        </div>
+
+        <!-- Actions Toolbar (Shown when items detected) -->
+        <div id="gmailActionsBar" class="hidden flex items-center justify-between p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30">
+          <div class="flex items-center gap-2">
+            <span id="gmailDetectedCount" class="text-xs font-bold text-indigo-300">0 detected</span>
+          </div>
+          <button id="btnImportGmailSelected" type="button" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition-all">
+            + Import Selected to Ledger
+          </button>
+        </div>
+
+        <!-- Detected Results Container -->
+        <div id="gmailResultsContainer" class="min-h-[140px] max-h-[300px] overflow-y-auto space-y-2">
+          <div class="py-10 text-center text-slate-500">
+            <p class="font-medium text-slate-400">Click "Scan Emails for Financial Transactions" above to begin</p>
+            <p class="text-xs text-slate-500 mt-1">Or use the quick manual paste box below to test without OAuth.</p>
+          </div>
+        </div>
+
+        <!-- Zero-OAuth Manual Paste Fallback -->
+        <details class="p-3.5 rounded-2xl bg-slate-800/30 border border-slate-700/40 text-slate-300">
+          <summary class="font-semibold cursor-pointer text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5">
+            📋 Quick Test: Paste Bank / UPI Email or SMS Text Directly (No Google Login Required)
+          </summary>
+          <div class="mt-3 space-y-2.5">
+            <p class="text-[11px] text-slate-400">Copy any transaction alert email (e.g. from HDFC, SBI, ICICI, PhonePe, Swiggy, Paytm) and paste here to test the smart parser instantly:</p>
+            <textarea id="manualEmailTextarea" rows="3" placeholder="e.g. 'Dear Customer, INR 1,250.00 has been debited from your account **1234 on 08-Oct-26 towards Swiggy UPI. Available balance: INR 45,200.00'" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-600 font-mono"></textarea>
+            <button id="btnParseManualEmail" type="button" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-colors">
+              Extract & Review Entry
+            </button>
+          </div>
+        </details>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="pt-3 border-t border-slate-800 flex justify-end">
+        <button type="button" onclick="UI.closeModal('gmailModal')" class="px-5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- App Scripts in Dependency Order -->
   <script src="js/store.js"></script>
   <script src="js/ui.js"></script>
@@ -1188,6 +1351,7 @@
   <script src="js/budgets.js"></script>
   <script src="js/exportImport.js"></script>
   <script src="js/cloudSync.js"></script>
+  <script src="js/gmailScanner.js"></script>
   <script src="js/app.js"></script>
 
 </body>
