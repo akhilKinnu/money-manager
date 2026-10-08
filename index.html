@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en" class="dark" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinTrack Pro - Modern Expense & Income Manager</title>
+  <meta name="description" content="Top-notch, modern expense tracker with real-time cashflow analytics, budgets, and smart financial insights.">
+  
+  <!-- Tailwind CSS Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#EEF2FF',
+              100: '#E0E7FF',
+              500: '#6366F1',
+              600: '#4F46E5',
+              700: '#4338CA',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Firebase Compat SDK (Auth & Firestore) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Google Identity Services (GIS) & Google Drive API Client -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js" async defer></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white transition-colors duration-200">
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none [&>*]:pointer-events-auto"></div>
+
+  <!-- Hidden File Input for JSON Backup Import -->
+  <input type="file" id="jsonFileInput" accept=".json" class="hidden">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800/80 transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16 gap-4">
+        
+        <!-- Brand Logo -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-lg font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">FinTrack<span class="text-indigo-400">Pro</span></span>
+              <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v2.0</span>
+            </div>
+            <p class="text-[11px] text-slate-400 hidden sm:block flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+              Local & Secure • Private on Device
+            </p>
+          </div>
+        </div>
+
+        <!-- Global Action Controls -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <!-- Cloud Status Badge Button -->
+          <button id="cloudStatusBadge" title="Cloud Sync & Multi-Device Setup" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700/80 cursor-pointer hover:bg-slate-750 hover:border-indigo-500/50 transition-all">
+            <span id="cloudStatusDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+            <span id="cloudStatusText" class="truncate max-w-[110px] sm:max-w-none">Cloud Sync</span>
+          </button>
+
+          <!-- Currency Picker -->
+          <div class="relative">
+            <select id="currencySelector" class="bg-slate-800/90 text-slate-200 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700/80 hover:border-slate-600 cursor-pointer">
+              <option value="INR" selected>₹ INR</option>
+              <option value="USD">$ USD</option>
+              <option value="EUR">€ EUR</option>
+              <option value="GBP">£ GBP</option>
+              <option value="JPY">¥ JPY</option>
+              <option value="CAD">CA$ CAD</option>
+              <option value="AUD">AU$ AUD</option>
+              <option value="SGD">SG$ SGD</option>
+              <option value="AED">AED</option>
+            </select>
+          </div>
+
+          <!-- Theme Toggle Button -->
+          <button id="themeToggleBtn" title="Toggle Theme" class="p-2 rounded-lg bg-slate-800/80 border border-slate-700/80 text-slate-300 hover:text-white transition-colors">
+            <span id="themeToggleIcon">
+              <svg class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+            </span>
+          </button>
+
+          <!-- Load Demo Data Button -->
+          <button onclick="window.store.loadDemoData(); UI.showToast('Demo dataset loaded!', 'success')" title="Reset to Sample Data" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors">
+            <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            Demo Data
+          </button>
+
+          <!-- Add Transaction Primary Button -->
+          <button onclick="window.transactions.openAddModal('debit')" class="flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-600/30 hover:from-indigo-500 hover:to-violet-500 active:scale-95 transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+            <span>+ Add Entry</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Sub-Nav & Timeframe Bar -->
+    <div class="border-t border-slate-800/80 bg-slate-900/50 px-4 sm:px-6 lg:px-8 py-2">
+      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+        
+        <!-- View Navigation Tabs -->
+        <nav class="flex items-center gap-1 sm:gap-2">
+          <button data-nav-view="dashboard" class="nav-active flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+            Dashboard
+          </button>
+          <button data-nav-view="transactions" class="nav-inactive flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+            Transactions
+            <span id="statTotalTransactions" class="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-300">0</span>
+          </button>
+          <button data-nav-view="analytics" class="nav-inactive flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            Analytics Hub
+          </button>
+          <button data-nav-view="budgets" class="nav-inactive flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            Budgets
+          </button>
+          <button data-nav-view="settings" class="nav-inactive flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            Settings
+          </button>
+        </nav>
+
+        <!-- Timeframe Preset Switcher -->
+        <div class="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 overflow-x-auto text-xs">
+          <button data-timeframe="this-month" class="timeframe-active px-2.5 py-1 rounded-lg font-medium transition-all">This Month</button>
+          <button data-timeframe="last-month" class="timeframe-inactive px-2.5 py-1 rounded-lg font-medium transition-all">Last Month</button>
+          <button data-timeframe="last-30-days" class="timeframe-inactive px-2.5 py-1 rounded-lg font-medium transition-all">Last 30D</button>
+          <button data-timeframe="this-year" class="timeframe-inactive px-2.5 py-1 rounded-lg font-medium transition-all">This Year</button>
+          <button data-timeframe="all" class="timeframe-inactive px-2.5 py-1 rounded-lg font-medium transition-all">All Time</button>
+          <button data-timeframe="custom" class="timeframe-inactive px-2.5 py-1 rounded-lg font-medium transition-all">Custom</button>
+        </div>
+
+      </div>
+
+      <!-- Custom Date Range Expandable -->
+      <div id="customDateRangePicker" class="hidden max-w-7xl mx-auto pt-3 flex flex-wrap items-center gap-3 text-xs">
+        <span class="text-slate-400 font-medium">Select Range:</span>
+        <input type="date" id="customStartDate" class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200">
+        <span class="text-slate-500">to</span>
+        <input type="date" id="customEndDate" class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200">
+        <button id="applyCustomDateBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-1 rounded-lg transition-colors">Apply</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ========================================== -->
+    <!-- VIEW 1: DASHBOARD                          -->
+    <!-- ========================================== -->
+    <section id="view-dashboard" class="view-section space-y-6">
+
+      <!-- Executive KPI Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        
+        <!-- KPI 1: Net Balance -->
+        <div class="glass-panel p-5 rounded-2xl relative overflow-hidden card-hover">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Net Balance</span>
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
+            </div>
+          </div>
+          <div id="kpiNetBalance" class="text-2xl lg:text-3xl font-extrabold tracking-tight text-emerald-400 font-mono">₹0.00</div>
+          <p class="text-xs text-slate-400 mt-2 flex items-center gap-1.5">
+            <span>Income minus all expenses</span>
+          </p>
+        </div>
+
+        <!-- KPI 2: Total Income (Credit) -->
+        <div class="glass-panel p-5 rounded-2xl relative overflow-hidden card-hover">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Total Income (Credit)</span>
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 11l5-5m0 0l5 5m-5-5v12"></path></svg>
+            </div>
+          </div>
+          <div id="kpiTotalIncome" class="text-2xl lg:text-3xl font-extrabold tracking-tight text-emerald-400 font-mono">₹0.00</div>
+          <p id="kpiIncomeCount" class="text-xs text-slate-400 mt-2">0 transactions</p>
+        </div>
+
+        <!-- KPI 3: Total Expenses (Debit) -->
+        <div class="glass-panel p-5 rounded-2xl relative overflow-hidden card-hover">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Total Expenses (Debit)</span>
+            <div class="w-8 h-8 rounded-lg bg-rose-500/15 text-rose-400 flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 13l-5 5m0 0l-5-5m5 5V6"></path></svg>
+            </div>
+          </div>
+          <div id="kpiTotalExpense" class="text-2xl lg:text-3xl font-extrabold tracking-tight text-rose-400 font-mono">₹0.00</div>
+          <p id="kpiExpenseCount" class="text-xs text-slate-400 mt-2">0 transactions</p>
+        </div>
+
+        <!-- KPI 4: Savings Rate -->
+        <div class="glass-panel p-5 rounded-2xl relative overflow-hidden card-hover">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Savings Rate</span>
+            <div id="kpiSavingsBadge" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              Good
+            </div>
+          </div>
+          <div id="kpiSavingsRate" class="text-2xl lg:text-3xl font-extrabold tracking-tight text-indigo-400 font-mono">0.0%</div>
+          <p class="text-xs text-slate-400 mt-2">Percentage of earnings retained</p>
+        </div>
+
+      </div>
+
+      <!-- Quick Add Inline Bar -->
+      <div class="glass-panel p-4 rounded-2xl border border-indigo-500/20 bg-indigo-950/10">
+        <form id="quickAddForm" class="flex flex-wrap items-center gap-3">
+          <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            Quick Entry:
+          </span>
+
+          <!-- Type Selector Pills -->
+          <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-700/80">
+            <button type="button" id="quickTypeDebit" class="py-1.5 px-3 rounded-lg text-xs font-semibold transition-all bg-rose-500 text-white shadow-sm">Debit (Expense)</button>
+            <button type="button" id="quickTypeCredit" class="py-1.5 px-3 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-slate-200 bg-slate-800 border border-slate-700">Credit (Income)</button>
+            <input type="hidden" id="quickTxType" value="debit">
+          </div>
+
+          <!-- Description / Details -->
+          <div class="flex-1 min-w-[180px]">
+            <input type="text" id="quickTxDetails" placeholder="What was this for? (e.g. Grocery store, Salary)" required class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500">
+          </div>
+
+          <!-- Amount -->
+          <div class="w-28 sm:w-36">
+            <input type="number" step="0.01" min="0.01" id="quickTxAmount" placeholder="Amount" required class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 font-mono">
+          </div>
+
+          <!-- Category Selector -->
+          <div class="w-36 sm:w-44">
+            <select id="quickTxCategory" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 font-medium cursor-pointer">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+
+          <!-- Add Button -->
+          <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold transition-all active:scale-95 shadow-md shadow-indigo-600/20 shrink-0">
+            Add
+          </button>
+        </form>
+      </div>
+
+      <!-- Charts Row 1: Cashflow Timeline + Category Expense Donut -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left: Cashflow Trend Chart (7 cols) -->
+        <div class="lg:col-span-7 glass-panel p-5 rounded-2xl flex flex-col min-h-[360px]">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-100">Cash Flow Evolution</h3>
+              <p class="text-xs text-slate-400">Income vs Expenses over the selected timeframe</p>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+              <span class="flex items-center gap-1.5 text-emerald-400 font-medium">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Credit
+              </span>
+              <span class="flex items-center gap-1.5 text-rose-400 font-medium">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Debit
+              </span>
+            </div>
+          </div>
+          
+          <div class="flex-1 relative w-full h-[260px]">
+            <canvas id="chartCashflowTrend"></canvas>
+            <div id="chartCashflowTrendNotice" class="hidden absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
+              No transactions for selected period
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Category Expense Breakdown (5 cols) -->
+        <div class="lg:col-span-5 glass-panel p-5 rounded-2xl flex flex-col min-h-[360px]">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h3 class="text-base font-bold text-slate-100">Expense Allocation</h3>
+              <p class="text-xs text-slate-400">Where your money goes</p>
+            </div>
+            <span id="expenseCategoryCenterTotal" class="text-sm font-bold font-mono text-rose-400">₹0.00</span>
+          </div>
+
+          <div class="relative w-full h-[180px] my-2">
+            <canvas id="chartExpenseCategory"></canvas>
+            <div id="chartExpenseCategoryNotice" class="hidden absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
+              No expense data recorded
+            </div>
+          </div>
+
+          <!-- Category Legend / Breakdown list -->
+          <div id="categoryLegendContainer" class="flex-1 overflow-y-auto max-h-[120px] pr-1 space-y-1 mt-2">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Ledger & Mini Budget Row -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left: Recent Transactions (8 cols) -->
+        <div class="lg:col-span-8 glass-panel p-5 rounded-2xl">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-100">Recent Transactions</h3>
+              <p class="text-xs text-slate-400">Latest recorded income & expense events</p>
+            </div>
+            <button onclick="window.app.switchView('transactions')" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+              View All <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+          </div>
+
+          <div id="dashboardRecentTxList" class="space-y-2.5">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Right: Monthly Budget Tracker + Quick Stats (4 cols) -->
+        <div class="lg:col-span-4 space-y-6">
+          
+          <!-- Mini Budget Card -->
+          <div class="glass-panel p-5 rounded-2xl">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-base font-bold text-slate-100">Monthly Budgets</h3>
+              <button onclick="window.app.switchView('budgets')" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold">Manage</button>
+            </div>
+            <div id="dashboardBudgetList" class="space-y-3">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Quick Actions & Tips Card -->
+          <div class="glass-panel p-5 rounded-2xl bg-gradient-to-br from-indigo-950/40 to-slate-900 border-indigo-500/20">
+            <h4 class="text-sm font-bold text-indigo-300 flex items-center gap-2 mb-2">
+              <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              Quick Shortcuts
+            </h4>
+            <div class="text-xs text-slate-400 space-y-1.5">
+              <p><kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">N</kbd> : New transaction</p>
+              <p><kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">D</kbd> : Dashboard view</p>
+              <p><kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">T</kbd> : Full transactions ledger</p>
+              <p><kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">A</kbd> : Analytics deep-dive</p>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 2: TRANSACTIONS                       -->
+    <!-- ========================================== -->
+    <section id="view-transactions" class="view-section hidden space-y-5">
+      
+      <!-- Top Toolbar -->
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-100">Transaction History</h2>
+          <p class="text-xs text-slate-400">Search, filter, edit and export your financial records</p>
+        </div>
+
+        <div class="flex items-center gap-2.5">
+          <button onclick="window.exportImport.exportToCSV()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors">
+            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Export CSV
+          </button>
+          <button onclick="window.exportImport.printReport()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors">
+            <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            Print Statement
+          </button>
+          <button onclick="window.transactions.openAddModal('debit')" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 transition-all">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+            + Add Transaction
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="glass-panel p-4 rounded-2xl space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          
+          <!-- Search Input -->
+          <div class="relative">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="text" id="tableSearchInput" placeholder="Search by details, notes, tag..." class="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-10 pr-3.5 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500">
+          </div>
+
+          <!-- Type Filter -->
+          <div>
+            <select id="filterTypeSelect" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200">
+              <option value="all">All Types (Credit & Debit)</option>
+              <option value="credit">Credit Only (Income)</option>
+              <option value="debit">Debit Only (Expense)</option>
+            </select>
+          </div>
+
+          <!-- Category Filter -->
+          <div>
+            <select id="filterCategorySelect" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200">
+              <option value="all">All Categories</option>
+              <option value="Food & Dining">Food & Dining</option>
+              <option value="Groceries">Groceries</option>
+              <option value="Housing & Rent">Housing & Rent</option>
+              <option value="Utilities & Bills">Utilities & Bills</option>
+              <option value="Transportation">Transportation</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Health & Medical">Health & Medical</option>
+              <option value="Monthly Salary">Monthly Salary</option>
+              <option value="Freelance & Projects">Freelance & Projects</option>
+              <option value="Investments & Dividends">Investments & Dividends</option>
+            </select>
+          </div>
+
+          <!-- Sort Filter -->
+          <div>
+            <select id="filterSortSelect" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200">
+              <option value="date-desc">Date (Newest First)</option>
+              <option value="date-asc">Date (Oldest First)</option>
+              <option value="amount-desc">Amount (Highest First)</option>
+              <option value="amount-asc">Amount (Lowest First)</option>
+              <option value="details-asc">Details (A-Z)</option>
+            </select>
+          </div>
+
+        </div>
+
+        <!-- Bulk Action Bar -->
+        <div id="bulkActionBar" class="hidden flex items-center justify-between bg-indigo-950/40 border border-indigo-500/30 px-4 py-2.5 rounded-xl">
+          <div class="flex items-center gap-2 text-xs text-indigo-300 font-medium">
+            <span id="bulkSelectedCount">0 selected</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btnBulkDelete" class="px-3 py-1 rounded-lg text-xs font-semibold bg-rose-500 hover:bg-rose-600 text-white transition-colors">
+              Delete Selected
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Transaction Table Card -->
+      <div class="glass-panel rounded-2xl overflow-hidden border border-slate-800">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-900/80 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                <th class="p-4 w-10">
+                  <input type="checkbox" id="selectAllTx" class="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                </th>
+                <th class="p-4">Details & Type</th>
+                <th class="p-4">Category</th>
+                <th class="p-4">Date & Account</th>
+                <th class="p-4 text-right">Amount</th>
+                <th class="p-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="transactionsTableBody" class="divide-y divide-slate-800/60">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div class="flex flex-wrap items-center justify-between p-4 border-t border-slate-800/80 bg-slate-900/40 text-xs">
+          <span id="tablePaginationStats" class="text-slate-400">Showing 0 - 0 of 0</span>
+          
+          <div class="flex items-center gap-3">
+            <button id="tablePrevBtn" onclick="window.transactions.prevPage()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-40 disabled:pointer-events-none transition-colors">
+              Previous
+            </button>
+            <span id="tablePageIndicator" class="text-slate-400 font-medium font-mono">Page 1 of 1</span>
+            <button id="tableNextBtn" onclick="window.transactions.nextPage()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-40 disabled:pointer-events-none transition-colors">
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 3: ANALYTICS HUB (VARIETY OF CHARTS)  -->
+    <!-- ========================================== -->
+    <section id="view-analytics" class="view-section hidden space-y-6">
+      
+      <div>
+        <h2 class="text-xl font-bold text-slate-100">Financial Analytics Hub</h2>
+        <p class="text-xs text-slate-400">Comprehensive breakdown of your earning patterns, spending trends, and habits</p>
+      </div>
+
+      <!-- Analytics Grid: 6+ Varieties of Analytics -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Chart 1: Monthly Burn Rate & Comparison -->
+        <div class="glass-panel p-5 rounded-2xl flex flex-col min-h-[340px]">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-100">Monthly Burn Rate & Net Cashflow</h3>
+              <p class="text-xs text-slate-400">Last 6 months side-by-side comparison</p>
+            </div>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Monthly</span>
+          </div>
+          <div class="flex-1 relative w-full h-[250px]">
+            <canvas id="chartMonthlyComparison"></canvas>
+            <div id="chartMonthlyNotice" class="hidden absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
+              Insufficient historical data
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart 2: Income Sources Distribution -->
+        <div class="glass-panel p-5 rounded-2xl flex flex-col min-h-[340px]">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-100">Income Streams (Credit)</h3>
+              <p class="text-xs text-slate-400">Distribution of earnings across categories</p>
+            </div>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Credits</span>
+          </div>
+          <div class="flex-1 relative w-full h-[250px]">
+            <canvas id="chartIncomeSources"></canvas>
+            <div id="chartIncomeSourcesNotice" class="hidden absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
+              No income entries recorded
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart 3: Day-of-the-Week Spending Pattern -->
+        <div class="glass-panel p-5 rounded-2xl flex flex-col min-h-[340px]">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-100">Spending by Day of Week</h3>
+              <p class="text-xs text-slate-400">Find out which days see peak expenditures</p>
+            </div>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20">Habits</span>
+          </div>
+          <div class="flex-1 relative w-full h-[250px]">
+            <canvas id="chartDayOfWeek"></canvas>
+            <div id="chartDayNotice" class="hidden absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
+              No expenses recorded
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart 4: Payment Methods Distribution -->
+        <div class="glass-panel p-5 rounded-2xl flex flex-col min-h-[340px]">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-100">Payment Accounts & Methods</h3>
+              <p class="text-xs text-slate-400">Cash vs Card vs Bank vs Digital Wallets</p>
+            </div>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-500/10 text-slate-300 border border-slate-500/20">Channels</span>
+          </div>
+          <div class="flex-1 relative w-full h-[250px]">
+            <canvas id="chartPaymentMethod"></canvas>
+            <div id="chartPaymentNotice" class="hidden absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
+              No transactions recorded
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Top 5 Highest Expenses Widget -->
+      <div class="glass-panel p-5 rounded-2xl">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-100">Top 5 Largest Spends</h3>
+            <p class="text-xs text-slate-400">Individual purchases that had the highest impact</p>
+          </div>
+          <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20">Impact</span>
+        </div>
+        <div id="topExpensesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 4: BUDGETS & GOALS                    -->
+    <!-- ========================================== -->
+    <section id="view-budgets" class="view-section hidden space-y-6">
+      
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-100">Budgets & Savings Targets</h2>
+          <p class="text-xs text-slate-400">Set monthly limits to keep your spending controlled and hit targets</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button onclick="window.budgets.openGoalModal()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors">
+            🎯 Edit Goal
+          </button>
+          <button onclick="window.budgets.openEditBudgetModal()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 transition-all">
+            + Set Category Budget
+          </button>
+        </div>
+      </div>
+
+      <!-- Savings Target Hero Banner -->
+      <div class="glass-panel p-6 rounded-2xl bg-gradient-to-r from-indigo-950/60 via-slate-900 to-slate-900 border-indigo-500/30">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">Primary Savings Goal</span>
+            <h3 id="savingsGoalName" class="text-xl font-bold text-slate-100 mt-1">Financial Freedom Vault</h3>
+          </div>
+          <div class="text-right">
+            <span id="savingsGoalPct" class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">0% Achieved</span>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-baseline mb-2">
+          <span id="savingsGoalCurrent" class="text-3xl font-extrabold text-emerald-400 font-mono">₹0.00</span>
+          <span class="text-sm text-slate-400 font-mono">Target: <strong id="savingsGoalTarget" class="text-slate-200">₹2,00,000.00</strong></span>
+        </div>
+
+        <div class="w-full h-3.5 rounded-full bg-slate-800 overflow-hidden p-0.5 border border-slate-700/60">
+          <div id="savingsGoalBar" class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-indigo-500 transition-all duration-700" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Category Budgets Grid -->
+      <div>
+        <h3 class="text-base font-bold text-slate-100 mb-4">Category Spending Limits (Current Month)</h3>
+        <div id="fullBudgetsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 5: SETTINGS & BACKUP                  -->
+    <!-- ========================================== -->
+    <section id="view-settings" class="view-section hidden space-y-6">
+      
+      <div>
+        <h2 class="text-xl font-bold text-slate-100">Settings & Data Management</h2>
+        <p class="text-xs text-slate-400">Configure preferences, backup data, or restore existing files</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Card: Data Portability & Backup -->
+        <div class="glass-panel p-6 rounded-2xl space-y-5">
+          <div>
+            <h3 class="text-base font-bold text-slate-100">Data Backup & Restore</h3>
+            <p class="text-xs text-slate-400">You own 100% of your financial data. Save and restore anytime.</p>
+          </div>
+
+          <div class="space-y-3">
+            <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/40">
+              <div>
+                <p class="font-semibold text-sm text-slate-200">Export Full JSON Backup</p>
+                <p class="text-xs text-slate-400">Includes all transactions, budgets, goals, and settings</p>
+              </div>
+              <button onclick="window.exportImport.exportBackupJSON()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors">
+                Backup JSON
+              </button>
+            </div>
+
+            <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/40">
+              <div>
+                <p class="font-semibold text-sm text-slate-200">Restore from JSON</p>
+                <p class="text-xs text-slate-400">Upload a previously saved FinTrack backup file</p>
+              </div>
+              <button onclick="window.exportImport.triggerImportJSON()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 transition-colors">
+                Restore File
+              </button>
+            </div>
+
+            <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/40">
+              <div>
+                <p class="font-semibold text-sm text-slate-200">Export CSV Spreadsheet</p>
+                <p class="text-xs text-slate-400">Compatible with Microsoft Excel, Google Sheets, Numbers</p>
+              </div>
+              <button onclick="window.exportImport.exportToCSV()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 transition-colors">
+                Download CSV
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card: Demo Data & Reset -->
+        <div class="glass-panel p-6 rounded-2xl space-y-5">
+          <div>
+            <h3 class="text-base font-bold text-slate-100">Demo Data & Diagnostics</h3>
+            <p class="text-xs text-slate-400">Load sample realistic transactions or completely reset storage</p>
+          </div>
+
+          <div class="space-y-3">
+            <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/40">
+              <div>
+                <p class="font-semibold text-sm text-slate-200">Populate Realistic Sample Data</p>
+                <p class="text-xs text-slate-400">Adds 30+ transactions across various categories</p>
+              </div>
+              <button onclick="window.store.loadDemoData(); UI.showToast('Sample dataset loaded!', 'success')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors">
+                Load Demo
+              </button>
+            </div>
+
+            <div class="flex items-center justify-between p-3.5 rounded-xl bg-rose-950/20 border border-rose-500/20">
+              <div>
+                <p class="font-semibold text-sm text-rose-300">Wipe All Local Data</p>
+                <p class="text-xs text-slate-400">Irreversibly delete all transactions and reset</p>
+              </div>
+              <button onclick="if(confirm('Are you absolutely sure you want to delete all transactions and reset data?')) { window.store.clearAll(); UI.showToast('All data cleared', 'info'); }" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white transition-colors">
+                Clear All
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- MODALS                                     -->
+  <!-- ========================================== -->
+
+  <!-- Modal 1: Add / Edit Transaction Modal -->
+  <div id="txModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm items-center justify-center p-4">
+    <div class="modal-box w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl transition-all transform scale-95 opacity-0">
+      
+      <div class="flex items-center justify-between mb-5">
+        <h3 id="modalTitle" class="text-lg font-bold text-slate-100">Add Transaction</h3>
+        <button onclick="UI.closeModal('txModal')" class="text-slate-400 hover:text-white p-1 text-xl font-bold">&times;</button>
+      </div>
+
+      <form id="txModalForm" class="space-y-4">
+        
+        <!-- Credit / Debit Toggle Pills -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-slate-300">Transaction Type</label>
+          <div class="flex items-center gap-2">
+            <button type="button" id="modalTypeDebit" class="flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all shadow-sm bg-rose-500 text-white shadow-rose-500/20">
+              Debit (Expense)
+            </button>
+            <button type="button" id="modalTypeCredit" class="flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all text-slate-400 hover:text-slate-200 bg-slate-800/40 border border-slate-700/60">
+              Credit (Income)
+            </button>
+            <input type="hidden" id="modalTxType" value="debit">
+          </div>
+        </div>
+
+        <!-- Details / Title -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-slate-300">Details / Description <span class="text-rose-400">*</span></label>
+          <input type="text" id="modalTxDetails" required placeholder="e.g. Whole Foods Groceries, Salary, Dinner" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500">
+        </div>
+
+        <!-- Amount & Date -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-300">Amount <span class="text-rose-400">*</span></label>
+            <input type="number" step="0.01" min="0.01" id="modalTxAmount" required placeholder="0.00" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 font-mono">
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-300">Date</label>
+            <input type="date" id="modalTxDate" required class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100">
+          </div>
+        </div>
+
+        <!-- Category & Payment Method -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-300">Category</label>
+            <select id="modalTxCategory" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 cursor-pointer">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-300">Payment Account</label>
+            <select id="modalTxPaymentMethod" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 cursor-pointer">
+              <option value="Bank Account">Bank Account</option>
+              <option value="Credit Card">Credit Card</option>
+              <option value="Debit Card">Debit Card</option>
+              <option value="Cash">Cash</option>
+              <option value="UPI / Digital Wallet">UPI / Digital Wallet</option>
+              <option value="PayPal">PayPal</option>
+              <option value="Crypto / Other">Crypto / Other</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-slate-300">Notes / Tags (Optional)</label>
+          <textarea id="modalTxNotes" rows="2" placeholder="Additional notes or #tags..." class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500"></textarea>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="UI.closeModal('txModal')" class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">
+            Cancel
+          </button>
+          <button type="submit" id="modalSubmitBtn" class="px-5 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 transition-all">
+            Save Transaction
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Set Budget Modal -->
+  <div id="budgetModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm items-center justify-center p-4">
+    <div class="modal-box w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl transition-all transform scale-95 opacity-0">
+      
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-slate-100">Set Monthly Budget</h3>
+        <button onclick="UI.closeModal('budgetModal')" class="text-slate-400 hover:text-white p-1 text-xl font-bold">&times;</button>
+      </div>
+
+      <form id="budgetModalForm" class="space-y-4">
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-slate-300">Category</label>
+          <select id="budgetCategorySelect" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100">
+            <!-- Dynamically populated -->
+          </select>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-slate-300">Monthly Spending Cap</label>
+          <input type="number" step="1" min="1" id="budgetAmountInput" required placeholder="e.g. 500" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono">
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="UI.closeModal('budgetModal')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white">
+            Save Budget
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- Modal 3: Savings Goal Modal -->
+  <div id="savingsGoalModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm items-center justify-center p-4">
+    <div class="modal-box w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl transition-all transform scale-95 opacity-0">
+      
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-slate-100">Edit Savings Target</h3>
+        <button onclick="UI.closeModal('savingsGoalModal')" class="text-slate-400 hover:text-white p-1 text-xl font-bold">&times;</button>
+      </div>
+
+      <form id="savingsGoalForm" class="space-y-4">
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-slate-300">Goal Name</label>
+          <input type="text" id="goalNameInput" required placeholder="e.g. Emergency Fund, New Car" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100">
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-slate-300">Target Amount</label>
+          <input type="number" step="10" min="1" id="goalTargetInput" required placeholder="e.g. 10000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono">
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="UI.closeModal('savingsGoalModal')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white">
+            Save Goal
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- Modal 4: Cloud Sync & Multi-Device Hub Modal -->
+  <div id="cloudSyncModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm items-center justify-center p-4">
+    <div class="modal-box w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl transition-all transform scale-95 opacity-0 max-h-[90vh] flex flex-col">
+      
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-slate-100">Cloud Sync & Multi-Device Hub</h3>
+            <p class="text-xs text-slate-400">Access your expenses from your phone, laptop, or any browser</p>
+          </div>
+        </div>
+        <button onclick="UI.closeModal('cloudSyncModal')" class="text-slate-400 hover:text-white p-1 text-xl font-bold">&times;</button>
+      </div>
+
+      <!-- Provider Tabs Header -->
+      <div class="flex items-center gap-2 border-b border-slate-800 pt-3 pb-1 overflow-x-auto text-xs font-semibold">
+        <button data-cloud-tab="firebase" class="px-3 py-2 border-b-2 border-indigo-500 text-indigo-400 transition-colors whitespace-nowrap">
+          🔥 Firebase (Google)
+        </button>
+        <button data-cloud-tab="supabase" class="px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap">
+          ⚡ Supabase (Postgres)
+        </button>
+        <button data-cloud-tab="gdrive" class="px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap">
+          📁 Google Drive
+        </button>
+        <button data-cloud-tab="deploy" class="px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap">
+          📱 Deploy to Phone
+        </button>
+      </div>
+
+      <!-- Tab Content Area (Scrollable) -->
+      <div class="flex-1 overflow-y-auto py-4 space-y-4 pr-1 text-xs">
+        
+        <!-- ================= TAB 1: FIREBASE ================= -->
+        <div id="cloudTab-firebase" class="cloud-tab-content space-y-4">
+          <div class="p-3.5 rounded-xl bg-indigo-950/30 border border-indigo-500/20 text-indigo-200 flex items-start gap-2.5">
+            <svg class="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <div>
+              <p class="font-semibold text-xs">Real-time Cloud Sync with Google Firestore</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">Free 1 GB cloud storage. Changes on your phone sync instantly to your laptop without page refreshes.</p>
+            </div>
+          </div>
+
+          <!-- One Click Google Sign In -->
+          <div class="text-center py-2 space-y-3">
+            <button id="btnFirebaseGoogle" type="button" class="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl font-bold text-sm bg-white hover:bg-slate-100 text-slate-800 shadow-md transition-all">
+              <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+              Sign In With Google
+            </button>
+            <span class="text-slate-500 font-medium">— OR SIGN IN WITH EMAIL —</span>
+          </div>
+
+          <!-- Email Login Form -->
+          <form id="formFirebaseEmail" class="space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="font-semibold text-slate-300">Email Address</label>
+                <input type="email" id="fbEmailInput" placeholder="you@example.com" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100">
+              </div>
+              <div>
+                <label class="font-semibold text-slate-300">Password</label>
+                <input type="password" id="fbPassInput" placeholder="••••••••" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100">
+              </div>
+            </div>
+            <div class="flex items-center gap-2 pt-1">
+              <button type="submit" class="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-colors">
+                Sign In
+              </button>
+              <button type="button" id="btnFirebaseRegister" class="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold transition-colors">
+                Create Account
+              </button>
+            </div>
+          </form>
+
+          <!-- Firebase Config Collapsible -->
+          <details class="p-3 rounded-xl bg-slate-800/40 border border-slate-700/40 text-slate-300">
+            <summary class="font-semibold cursor-pointer text-xs text-indigo-300">⚙️ Custom Firebase Project Credentials (Optional)</summary>
+            <form id="formFirebaseConfig" class="mt-3 space-y-2.5">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div>
+                  <label class="text-[11px] text-slate-400">API Key</label>
+                  <input type="text" id="fbApiKey" placeholder="AIzaSy..." class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-mono text-[11px]">
+                </div>
+                <div>
+                  <label class="text-[11px] text-slate-400">Auth Domain</label>
+                  <input type="text" id="fbAuthDomain" placeholder="your-app.firebaseapp.com" class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-mono text-[11px]">
+                </div>
+                <div>
+                  <label class="text-[11px] text-slate-400">Project ID</label>
+                  <input type="text" id="fbProjectId" placeholder="your-app-id" class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-mono text-[11px]">
+                </div>
+                <div>
+                  <label class="text-[11px] text-slate-400">App ID</label>
+                  <input type="text" id="fbAppId" placeholder="1:123456:web:..." class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-mono text-[11px]">
+                </div>
+              </div>
+              <button type="submit" class="px-3 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium text-xs">Save Firebase Config</button>
+            </form>
+          </details>
+
+          <div class="flex items-center justify-between pt-2">
+            <button onclick="window.cloudSync.pushToActiveCloud(); UI.showToast('Manual sync triggered', 'info')" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600/30 font-medium">
+              Sync to Firebase Now
+            </button>
+            <button onclick="window.cloudSync.signOutFirebase()" class="text-rose-400 hover:text-rose-300">
+              Disconnect Firebase
+            </button>
+          </div>
+        </div>
+
+        <!-- ================= TAB 2: SUPABASE ================= -->
+        <div id="cloudTab-supabase" class="cloud-tab-content hidden space-y-4">
+          <div class="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-500/20 text-emerald-200 flex items-start gap-2.5">
+            <svg class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            <div>
+              <p class="font-semibold text-xs">Supabase PostgreSQL Cloud Database</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">Open-source SQL backend with Row Level Security (RLS) guaranteeing 100% private data isolation.</p>
+            </div>
+          </div>
+
+          <form id="formSupabaseAuth" class="space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="font-semibold text-slate-300">Supabase Project URL</label>
+                <input type="url" id="supabaseUrlInput" placeholder="https://xyz.supabase.co" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 font-mono text-xs">
+              </div>
+              <div>
+                <label class="font-semibold text-slate-300">Anon Public Key</label>
+                <input type="text" id="supabaseKeyInput" placeholder="eyJhbGciOi..." class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 font-mono text-xs">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="font-semibold text-slate-300">User Email</label>
+                <input type="email" id="supabaseEmailInput" placeholder="you@example.com" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100">
+              </div>
+              <div>
+                <label class="font-semibold text-slate-300">Password</label>
+                <input type="password" id="supabasePassInput" placeholder="••••••••" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100">
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 pt-1">
+              <button type="submit" class="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors">
+                Login with Supabase
+              </button>
+              <button type="button" id="btnSupabaseRegister" class="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold transition-colors">
+                Register New User
+              </button>
+            </div>
+          </form>
+
+          <!-- Supabase SQL Helper -->
+          <div class="p-3 rounded-xl bg-slate-800/40 border border-slate-700/40 text-slate-400">
+            <p class="font-semibold text-slate-200">First time setting up Supabase?</p>
+            <p class="text-[11px] mt-0.5">Run the pre-built SQL file <code class="text-emerald-400 font-mono">supabase-schema.sql</code> in your Supabase SQL Editor to create the table and security policies.</p>
+          </div>
+
+          <div class="flex items-center justify-between pt-2">
+            <button onclick="window.cloudSync.pushToSupabase(); UI.showToast('Pushed to Supabase', 'info')" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600/30 font-medium">
+              Sync to Supabase Now
+            </button>
+            <button onclick="window.cloudSync.signOutSupabase()" class="text-rose-400 hover:text-rose-300">
+              Disconnect Supabase
+            </button>
+          </div>
+        </div>
+
+        <!-- ================= TAB 3: GOOGLE DRIVE ================= -->
+        <div id="cloudTab-gdrive" class="cloud-tab-content hidden space-y-4">
+          <div class="p-3.5 rounded-xl bg-blue-950/30 border border-blue-500/20 text-blue-200 flex items-start gap-2.5">
+            <svg class="w-4 h-4 text-blue-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+            <div>
+              <p class="font-semibold text-xs">Direct Google Drive Sync ("Bring Your Own Cloud")</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">Saves a private <code class="text-blue-300 font-mono">FinTrack_Pro_Vault.json</code> file inside your own personal Google Drive. Zero database required!</p>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <label class="font-semibold text-slate-300">Google OAuth 2.0 Client ID</label>
+              <input type="text" id="gdriveClientIdInput" placeholder="123456789-xxxx.apps.googleusercontent.com" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 font-mono text-xs">
+              <p class="text-[11px] text-slate-500 mt-1">Obtained from Google Cloud Console > Credentials > Web Client.</p>
+            </div>
+
+            <button id="btnGDriveConnect" type="button" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.01 1.99c-5.53 0-10 4.47-10 10 0 5.52 4.47 10 10 10s10-4.48 10-10c0-5.53-4.47-10-10-10zm-1.01 15.5l-4-4 1.41-1.41 2.59 2.58 6.59-6.59 1.41 1.42-8 8z"/></svg>
+              Authorize & Connect Google Drive
+            </button>
+
+            <div class="grid grid-cols-2 gap-3 pt-2">
+              <button id="btnGDriveBackup" type="button" class="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium">
+                ☁️ Backup Vault to Drive
+              </button>
+              <button id="btnGDriveRestore" type="button" class="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium">
+                📥 Restore Vault from Drive
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end pt-2">
+            <button onclick="window.cloudSync.signOutGoogleDrive()" class="text-rose-400 hover:text-rose-300">
+              Disconnect Google Drive
+            </button>
+          </div>
+        </div>
+
+        <!-- ================= TAB 4: DEPLOY TO PHONE ================= -->
+        <div id="cloudTab-deploy" class="cloud-tab-content hidden space-y-4">
+          <div class="p-3.5 rounded-xl bg-violet-950/30 border border-violet-500/20 text-violet-200">
+            <p class="font-semibold text-xs">Get a Live URL on your Phone in 60 Seconds</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">FinTrack Pro is 100% static and requires zero build steps. Deploy it for free on Vercel or GitHub Pages!</p>
+          </div>
+
+          <!-- Method A: Vercel -->
+          <div class="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-200 text-sm flex items-center gap-2">
+                ▲ Option A: Vercel (Fastest - 30 seconds)
+              </span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">100% Free</span>
+            </div>
+            <ol class="list-decimal list-inside text-slate-300 space-y-1 text-xs">
+              <li>Go to <a href="https://vercel.com/new" target="_blank" class="text-indigo-400 underline font-semibold">vercel.com/new</a> and sign in.</li>
+              <li>Drag & drop the folder <code class="text-slate-200 bg-slate-800 px-1 py-0.5 rounded font-mono">D:\Myself\Money Manager</code> or link your GitHub repo.</li>
+              <li>Click <strong>Deploy</strong>. Vercel provides a free live HTTPS URL (e.g. <code class="text-indigo-300 font-mono">fintrack.vercel.app</code>) that you can open on your phone immediately!</li>
+            </ol>
+          </div>
+
+          <!-- Method B: GitHub Pages -->
+          <div class="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-200 text-sm flex items-center gap-2">
+                🐙 Option B: GitHub Pages
+              </span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400">Built-in Actions</span>
+            </div>
+            <p class="text-xs text-slate-300">We've generated the complete <code class="text-slate-200 font-mono">.github/workflows/deploy.yml</code> workflow. Simply push this folder to your GitHub repo, and GitHub Pages will deploy it automatically!</p>
+          </div>
+
+          <!-- Phone PWA tip -->
+          <div class="p-3.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 flex items-start gap-2.5">
+            <span class="text-base">📲</span>
+            <div>
+              <p class="font-semibold text-xs">Turn it into a Phone App (PWA):</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">Once you open your live URL on Safari (iPhone) or Chrome (Android), tap <strong>Share / Menu</strong> &rarr; <strong>"Add to Home Screen"</strong>. It will look and launch just like a native mobile app!</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="pt-3 border-t border-slate-800 flex justify-end">
+        <button type="button" onclick="UI.closeModal('cloudSyncModal')" class="px-5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- App Scripts in Dependency Order -->
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/transactions.js"></script>
+  <script src="js/budgets.js"></script>
+  <script src="js/exportImport.js"></script>
+  <script src="js/cloudSync.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
