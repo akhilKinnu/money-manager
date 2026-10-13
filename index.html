@@ -1026,10 +1026,15 @@
         </div>
 
         <!-- Scan Progress Indicator (Hidden by default) -->
-        <div id="gmailScanProgress" class="hidden p-3.5 rounded-xl bg-slate-800/60 border border-slate-700 space-y-2">
+        <div id="gmailScanProgress" class="hidden p-3.5 rounded-xl bg-slate-800/60 border border-slate-700 space-y-2.5">
           <div class="flex items-center justify-between text-xs">
             <span id="gmailProgressText" class="text-slate-300 font-medium">Scanning HDFC emails...</span>
-            <span class="text-indigo-400 font-mono animate-pulse">Processing</span>
+            <div class="flex items-center gap-2">
+              <span class="text-indigo-400 font-mono animate-pulse">15x Parallel</span>
+              <button id="btnStopGmailScan" type="button" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-rose-950/60 hover:bg-rose-900 border border-rose-500/30 text-rose-300 transition-colors">
+                Stop & Keep Data
+              </button>
+            </div>
           </div>
           <div class="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
             <div id="gmailProgressBar" class="h-full rounded-full bg-gradient-to-r from-rose-500 to-indigo-500 transition-all duration-300" style="width: 15%"></div>

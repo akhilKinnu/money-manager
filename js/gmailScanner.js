@@ -124,8 +124,12 @@ class GmailScanner {
 
   // Build Gmail Search Query specifically targeting from:hdfc
   buildHDFCSearchQuery(timeframe, customQuery = '', startDate = '', endDate = '') {
-    // Filter specifically by "from:hdfc" across all HDFC domains & sender addresses
-    let queryParts = ['from:hdfc'];
+    // Upfront cloud filter: matches HDFC sender AND financial transaction alerts, filtering out 8,000+ promo/spam emails
+    let queryParts = [
+      'from:hdfc',
+      '(debited OR credited OR spent OR "alert" OR "transaction" OR "UPI" OR "VPA" OR "Rs." OR "INR" OR "Acct" OR "A/c" OR "ending")',
+      '-"pre-approved" -"apply now" -"OTP is" -"One Time Password"'
+    ];
 
     if (customQuery && customQuery.trim()) {
       queryParts.push(`(${customQuery.trim()})`);
@@ -202,7 +206,7 @@ class GmailScanner {
     return messages;
   }
 
-  // Scan HDFC emails from Gmail API
+  // Scan HDFC emails from Gmail API (15x Parallel Fetching + Live Streaming)
   async scanEmails(timeframe = 'all-history') {
     if (!this.accessToken) {
       this.connectGmail(() => this.scanEmails(timeframe));
@@ -219,7 +223,7 @@ class GmailScanner {
     const resultsContainer = document.getElementById('gmailResultsContainer');
 
     if (progressContainer) progressContainer.classList.remove('hidden');
-    if (progressText) progressText.textContent = 'Searching full Gmail inbox with query "from:hdfc"...';
+    if (progressText) progressText.textContent = 'Searching HDFC transaction alerts in your Gmail inbox...';
     if (progressBar) progressBar.style.width = '10%';
 
     const customFilter = document.getElementById('gmailCustomFilter') ? document.getElementById('gmailCustomFilter').value : '';
@@ -231,7 +235,7 @@ class GmailScanner {
     try {
       this.isScanning = true;
       const messages = await this.fetchMessageList(query, maxResults, (count) => {
-        if (progressText) progressText.textContent = `Found ${count} HDFC emails in inbox so far...`;
+        if (progressText) progressText.textContent = `Found ${count} HDFC transaction alerts in inbox so far...`;
       });
 
       if (messages.length === 0) {
@@ -240,60 +244,84 @@ class GmailScanner {
           resultsContainer.innerHTML = `
             <div class="py-12 text-center text-slate-500">
               <svg class="w-12 h-12 mx-auto mb-2 opacity-30 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-              <p class="font-medium text-slate-300">No HDFC Bank transaction emails found</p>
-              <p class="text-xs text-slate-500 mt-1">Make sure you have emails from HDFC in your inbox.</p>
+              <p class="font-medium text-slate-300">No HDFC transaction alerts found</p>
+              <p class="text-xs text-slate-500 mt-1">Make sure you have HDFC transaction emails in your inbox.</p>
             </div>
           `;
         }
-        UI.showToast('No HDFC emails found in this period', 'info');
+        UI.showToast('No HDFC transaction emails found in this period', 'info');
         this.isScanning = false;
         return;
       }
 
-      if (progressText) progressText.textContent = `Found ${messages.length} HDFC emails. Parsing transactions...`;
-      if (progressBar) progressBar.style.width = '25%';
+      if (progressText) progressText.textContent = `Found ${messages.length} HDFC alerts. Downloading with 15x parallel workers...`;
+      if (progressBar) progressBar.style.width = '20%';
 
       this.detectedTransactions = [];
       const existingIds = new Set(window.store.state.transactions.map(t => t.gmailMessageId).filter(Boolean));
 
-      for (let i = 0; i < messages.length; i++) {
-        const msgId = messages[i].id;
-        const msgRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msgId}?format=full`, {
-          headers: { Authorization: `Bearer ${this.accessToken}` }
+      // Parallel batch fetching (15 concurrent requests per batch)
+      const CONCURRENCY = 15;
+      let stopRequested = false;
+
+      const stopBtn = document.getElementById('btnStopGmailScan');
+      if (stopBtn) {
+        stopBtn.onclick = () => {
+          stopRequested = true;
+          if (progressText) progressText.textContent = 'Stopping scan and preserving extracted data...';
+        };
+      }
+
+      for (let i = 0; i < messages.length; i += CONCURRENCY) {
+        if (stopRequested) break;
+
+        const chunk = messages.slice(i, i + CONCURRENCY);
+        const chunkResults = await Promise.allSettled(
+          chunk.map(async (msg) => {
+            const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`, {
+              headers: { Authorization: `Bearer ${this.accessToken}` }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              return this.parseHDFCMessage(data);
+            }
+            return null;
+          })
+        );
+
+        let newBatchToAutoImport = [];
+        chunkResults.forEach((cr) => {
+          if (cr.status === 'fulfilled' && cr.value) {
+            const parsed = cr.value;
+            parsed.alreadyImported = existingIds.has(parsed.gmailMessageId);
+            this.detectedTransactions.push(parsed);
+            if (!parsed.alreadyImported) {
+              newBatchToAutoImport.push(parsed);
+              existingIds.add(parsed.gmailMessageId);
+            }
+          }
         });
 
-        if (msgRes.ok) {
-          const msgData = await msgRes.json();
-          const parsed = this.parseHDFCMessage(msgData);
-          if (parsed) {
-            parsed.alreadyImported = existingIds.has(msgId);
-            this.detectedTransactions.push(parsed);
-          }
+        // Live stream into store & dashboard in real-time
+        const autoImportChk = document.getElementById('gmailAutoImportCheckbox');
+        if (autoImportChk && autoImportChk.checked && newBatchToAutoImport.length > 0) {
+          window.store.addBatchTransactions(newBatchToAutoImport);
         }
 
-        const pct = Math.round(30 + ((i + 1) / messages.length) * 65);
+        const processedCount = Math.min(i + CONCURRENCY, messages.length);
+        const pct = Math.round(20 + (processedCount / messages.length) * 78);
         if (progressBar) progressBar.style.width = `${pct}%`;
         if (progressText) {
-          progressText.textContent = `Reading email ${i + 1} of ${messages.length} (${this.detectedTransactions.length} HDFC transactions extracted)...`;
+          progressText.textContent = `Scanned ${processedCount} of ${messages.length} (${this.detectedTransactions.length} HDFC transactions found)...`;
         }
       }
 
       if (progressContainer) progressContainer.classList.add('hidden');
       this.renderDetectedTransactions();
 
-      // Check if Auto-Import checkbox is enabled
       const autoImportChk = document.getElementById('gmailAutoImportCheckbox');
-      if (autoImportChk && autoImportChk.checked && this.detectedTransactions.length > 0) {
-        const newItems = this.detectedTransactions.filter(t => !t.alreadyImported);
-        if (newItems.length > 0) {
-          const added = window.store.addBatchTransactions(newItems);
-          UI.showToast(`Auto-imported ${added} new HDFC transactions into your dashboard!`, 'success');
-          // Mark them as imported in the view
-          this.detectedTransactions.forEach(t => { t.alreadyImported = true; });
-          this.renderDetectedTransactions();
-        } else {
-          UI.showToast(`All ${this.detectedTransactions.length} HDFC transactions are already in your ledger.`, 'info');
-        }
+      if (autoImportChk && autoImportChk.checked) {
+        UI.showToast(`Imported ${this.detectedTransactions.length} HDFC transactions into your dashboard!`, 'success');
       } else {
         UI.showToast(`Extracted ${this.detectedTransactions.length} HDFC transactions! Review below.`, 'success');
       }
