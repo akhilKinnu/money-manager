@@ -68,7 +68,6 @@ while ($listener.IsListening) {
         }
         $response.OutputStream.Close()
     } catch {
-        # Listener stopped or client disconnected
-        break
+        if (-not $listener.IsListening) { break }
     }
 }

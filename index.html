@@ -35,7 +35,8 @@
   <!-- Google Identity Services (GIS) for Gmail Readonly OAuth -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-  <!-- Custom CSS -->
+  <!-- Custom CSS & Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white transition-colors duration-200">
@@ -53,11 +54,7 @@
         
         <!-- Brand Logo -->
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-          </div>
+          <img src="logo.png" alt="FinTrack Pro Logo" class="w-10 h-10 rounded-xl object-cover shadow-md shadow-emerald-500/20 border border-slate-700/80 ring-1 ring-emerald-500/30">
           <div>
             <div class="flex items-center gap-2">
               <span class="text-lg font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">FinTrack<span class="text-indigo-400">Pro</span></span>
