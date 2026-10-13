@@ -960,8 +960,8 @@
         <!-- Scan Configuration Bar -->
         <div class="p-4 rounded-2xl bg-slate-800/30 border border-slate-700/50 space-y-3">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <span class="font-bold text-slate-200 text-xs">🔎 Step 2: Filter HDFC Bank Emails (Recent & Previous)</span>
-            <span class="text-[11px] font-mono text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-500/20">from:hdfcbank.net OR from:hdfcbank.com</span>
+            <span class="font-bold text-slate-200 text-xs">🔎 Step 2: Filter HDFC Bank Emails (Full Inbox & History)</span>
+            <span class="text-[11px] font-mono text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-500/20">from:hdfc</span>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
@@ -969,24 +969,26 @@
             <div class="sm:col-span-5">
               <label class="text-[11px] font-semibold text-slate-400">Email History Range</label>
               <select id="gmailTimeframeSelect" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 font-medium cursor-pointer">
-                <option value="7days">Recent: Last 7 Days</option>
-                <option value="30days">Recent: Last 30 Days</option>
-                <option value="90days" selected>Previous: Last 90 Days (3 Months)</option>
-                <option value="180days">Previous: Last 6 Months</option>
+                <option value="all-history" selected>♾️ Full Inbox (All History / No Date Limit)</option>
                 <option value="1year">Previous: Last 1 Year</option>
-                <option value="all-history">All Previous HDFC Emails (Full Inbox)</option>
+                <option value="180days">Previous: Last 6 Months</option>
+                <option value="90days">Previous: Last 90 Days (3 Months)</option>
+                <option value="30days">Recent: Last 30 Days</option>
+                <option value="7days">Recent: Last 7 Days</option>
                 <option value="custom">Custom Date Range...</option>
               </select>
             </div>
 
             <!-- Max Emails Limit -->
             <div class="sm:col-span-3">
-              <label class="text-[11px] font-semibold text-slate-400">Max Emails to Scan</label>
+              <label class="text-[11px] font-semibold text-slate-400">Scan Limit</label>
               <select id="gmailMaxLimitSelect" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 font-medium cursor-pointer">
-                <option value="50">Up to 50 emails</option>
-                <option value="100" selected>Up to 100 emails</option>
-                <option value="250">Up to 250 emails</option>
+                <option value="unlimited" selected>♾️ No Limit (Full Inbox)</option>
+                <option value="1000">Up to 1,000 emails</option>
                 <option value="500">Up to 500 emails</option>
+                <option value="250">Up to 250 emails</option>
+                <option value="100">Up to 100 emails</option>
+                <option value="50">Up to 50 emails</option>
               </select>
             </div>
 

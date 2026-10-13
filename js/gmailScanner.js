@@ -122,14 +122,10 @@ class GmailScanner {
     }
   }
 
-  // Build Gmail Search Query specifically targeting HDFC Bank transaction alerts
+  // Build Gmail Search Query specifically targeting from:hdfc
   buildHDFCSearchQuery(timeframe, customQuery = '', startDate = '', endDate = '') {
-    // Target HDFC Bank official domains & subjects
-    const hdfcSenderFilter = '(from:hdfcbank.net OR from:hdfcbank.com OR "HDFC Bank")';
-    const txKeywords = '(debited OR credited OR spent OR "alert" OR "transaction" OR "UPI" OR "VPA" OR "Acct" OR "A/c" OR "Card ending")';
-    const excludePromos = '-"pre-approved" -"personal loan" -"apply now" -"OTP is" -"One Time Password"';
-
-    let queryParts = [hdfcSenderFilter, txKeywords, excludePromos];
+    // Filter specifically by "from:hdfc" across all HDFC domains & sender addresses
+    let queryParts = ['from:hdfc'];
 
     if (customQuery && customQuery.trim()) {
       queryParts.push(`(${customQuery.trim()})`);
@@ -156,18 +152,20 @@ class GmailScanner {
       if (startDate) queryParts.push(`after:${startDate.replace(/-/g, '/')}`);
       if (endDate) queryParts.push(`before:${endDate.replace(/-/g, '/')}`);
     }
-    // If timeframe === 'all-history', no date restriction is added so it reads all previous HDFC emails!
+    // If timeframe === 'all-history', NO date parameter is added -> searches full inbox without date limit!
 
     return queryParts.join(' ');
   }
 
   // Fetch list of message IDs from Gmail with pagination support
-  async fetchMessageList(query, maxTotal = 100) {
+  async fetchMessageList(query, maxTotal = Infinity, onProgress = null) {
     let messages = [];
     let pageToken = null;
+    const isUnlimited = (maxTotal === 'unlimited' || maxTotal === Infinity || maxTotal === 0 || !maxTotal || isNaN(maxTotal));
+    const limit = isUnlimited ? 25000 : parseInt(maxTotal, 10);
 
-    while (messages.length < maxTotal) {
-      const batchLimit = Math.min(100, maxTotal - messages.length);
+    while (messages.length < limit) {
+      const batchLimit = isUnlimited ? 100 : Math.min(100, limit - messages.length);
       let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${batchLimit}`;
       if (pageToken) {
         url += `&pageToken=${encodeURIComponent(pageToken)}`;
@@ -191,7 +189,11 @@ class GmailScanner {
         messages = messages.concat(data.messages);
       }
 
-      if (!data.nextPageToken || messages.length >= maxTotal) {
+      if (onProgress) {
+        onProgress(messages.length);
+      }
+
+      if (!data.nextPageToken || messages.length >= limit) {
         break;
       }
       pageToken = data.nextPageToken;
@@ -201,14 +203,15 @@ class GmailScanner {
   }
 
   // Scan HDFC emails from Gmail API
-  async scanEmails(timeframe = '30days') {
+  async scanEmails(timeframe = 'all-history') {
     if (!this.accessToken) {
       this.connectGmail(() => this.scanEmails(timeframe));
       return;
     }
 
     const maxCountSelect = document.getElementById('gmailMaxLimitSelect');
-    const maxResults = maxCountSelect ? parseInt(maxCountSelect.value, 10) || 50 : 50;
+    const rawLimit = maxCountSelect ? maxCountSelect.value : 'unlimited';
+    const maxResults = (rawLimit === 'unlimited') ? Infinity : (parseInt(rawLimit, 10) || Infinity);
 
     const progressContainer = document.getElementById('gmailScanProgress');
     const progressBar = document.getElementById('gmailProgressBar');
@@ -216,8 +219,8 @@ class GmailScanner {
     const resultsContainer = document.getElementById('gmailResultsContainer');
 
     if (progressContainer) progressContainer.classList.remove('hidden');
-    if (progressText) progressText.textContent = 'Searching Gmail inbox for HDFC Bank emails...';
-    if (progressBar) progressBar.style.width = '15%';
+    if (progressText) progressText.textContent = 'Searching full Gmail inbox with query "from:hdfc"...';
+    if (progressBar) progressBar.style.width = '10%';
 
     const customFilter = document.getElementById('gmailCustomFilter') ? document.getElementById('gmailCustomFilter').value : '';
     const customStart = document.getElementById('gmailCustomStart') ? document.getElementById('gmailCustomStart').value : '';
@@ -227,7 +230,9 @@ class GmailScanner {
 
     try {
       this.isScanning = true;
-      const messages = await this.fetchMessageList(query, maxResults);
+      const messages = await this.fetchMessageList(query, maxResults, (count) => {
+        if (progressText) progressText.textContent = `Found ${count} HDFC emails in inbox so far...`;
+      });
 
       if (messages.length === 0) {
         if (progressContainer) progressContainer.classList.add('hidden');
@@ -236,17 +241,17 @@ class GmailScanner {
             <div class="py-12 text-center text-slate-500">
               <svg class="w-12 h-12 mx-auto mb-2 opacity-30 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
               <p class="font-medium text-slate-300">No HDFC Bank transaction emails found</p>
-              <p class="text-xs text-slate-500 mt-1">Try selecting "All Previous HDFC Emails" or a wider timeframe above.</p>
+              <p class="text-xs text-slate-500 mt-1">Make sure you have emails from HDFC in your inbox.</p>
             </div>
           `;
         }
-        UI.showToast('No HDFC transaction emails found in this period', 'info');
+        UI.showToast('No HDFC emails found in this period', 'info');
         this.isScanning = false;
         return;
       }
 
       if (progressText) progressText.textContent = `Found ${messages.length} HDFC emails. Parsing transactions...`;
-      if (progressBar) progressBar.style.width = '30%';
+      if (progressBar) progressBar.style.width = '25%';
 
       this.detectedTransactions = [];
       const existingIds = new Set(window.store.state.transactions.map(t => t.gmailMessageId).filter(Boolean));
@@ -421,35 +426,45 @@ class GmailScanner {
     let details = type === 'credit' ? 'HDFC Account Credit' : 'HDFC Bank Debit';
 
     const hdfcMerchantPatterns = [
-      // HDFC UPI VPA pattern: "to VPA swiggy@axisbank (Name) on" or "to VPA merchant@okaxis on"
-      /to VPA\s+([^\s]+(?:\s+\([^)]+\))?)\s+on/i,
+      // HDFC UPI VPA pattern: "towards VPA 1234@bank (MERCHANT NAME) on DD-MM-YY" or "to VPA 1234@bank (MERCHANT NAME)"
+      /(?:towards|to)\s+VPA\s+([^\s]+(?:\s+\([^)]+\))?)\s+on/i,
+      // Direct towards with VPA / paren: "towards ... (MERCHANT NAME)"
+      /towards\s+VPA\s+([A-Za-z0-9@._-]+\s*\([^)]+\))/i,
+      // Towards without VPA keyword: "towards ... (MERCHANT NAME)"
+      /towards\s+[^\n(]*\(([^)]+)\)/i,
       // HDFC Credit/Debit Card pattern: "for Rs 1,200.00 at AMAZON PAY on"
       /(?:Rs\.?|INR|₹)\s*[\d,]+(?:\.\d{1,2})?\s+at\s+([A-Za-z0-9\s&.,'*-]{2,35}?)\s+on\s+\d/i,
       // HDFC UPI Info pattern: "towards UPI/P2M/12345/SWIGGY"
       /towards\s+([A-Za-z0-9\s/_.-]{3,35}?)(?:\s+on\s+|\s+Ref|\.)/i,
       // HDFC Credit by VPA/Sender: "by VPA sender@okicici" or "by NEFT/IMPS from Name"
       /(?:by VPA|from VPA|credited by)\s+([^\s.]+(?:\s+\([^)]+\))?)/i,
-      // General "paid to" / "at"
-      /(?:paid to|spent at|at)\s+([A-Za-z0-9\s&'-]{3,28}?)(?:\s+on|\s+ref|\s+using|\.)/i
+      // General "paid to" / "spent at"
+      /(?:paid to|spent at|spent on|at)\s+([A-Za-z0-9\s&'-]{3,35}?)(?:\s+on|\s+ref|\s+using|\.)/i
     ];
 
     for (const pattern of hdfcMerchantPatterns) {
       const match = text.match(pattern);
       if (match && match[1]) {
         let extracted = match[1].trim();
-        // Clean up VPA handle if readable name exists
-        if (extracted.includes('@')) {
-          const parenMatch = extracted.match(/\(([^)]+)\)/);
-          if (parenMatch && parenMatch[1]) {
-            extracted = parenMatch[1].trim();
-          } else {
-            extracted = extracted.split('@')[0].replace(/[._-]/g, ' ').toUpperCase();
-          }
+        // Clean up VPA handle if readable name exists in parentheses, e.g. "vpa@kotak (BLUE BIRD RESTAURENT AND BAR)"
+        const parenMatch = extracted.match(/\(([^)]+)\)/);
+        if (parenMatch && parenMatch[1]) {
+          extracted = parenMatch[1].trim();
+        } else if (extracted.includes('@')) {
+          extracted = extracted.split('@')[0].replace(/[._-]/g, ' ').toUpperCase();
         }
         if (extracted.length >= 2) {
           details = extracted;
           break;
         }
+      }
+    }
+
+    // Secondary fallback: find any parenthesized business name near VPA or towards
+    if (details === 'HDFC Bank Debit' || details === 'HDFC Account Credit') {
+      const genericParen = text.match(/VPA[^(]*\(([^)]+)\)/i) || text.match(/towards[^(]*\(([^)]+)\)/i);
+      if (genericParen && genericParen[1]) {
+        details = genericParen[1].trim();
       }
     }
 
@@ -467,12 +482,34 @@ class GmailScanner {
       paymentMethod = 'HDFC NetBanking';
     }
 
-    // 5. Auto-Categorize based on merchant/keywords
+    // 5. Extract Date from Text if present (e.g. "on 12-10-26" or "on 12-10-2026")
+    let finalDate = meta.date || new Date().toISOString().split('T')[0];
+    const dateInTextMatch = text.match(/\bon\s+(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\b/i);
+    if (dateInTextMatch) {
+      let dd = dateInTextMatch[1].padStart(2, '0');
+      let mm = dateInTextMatch[2].padStart(2, '0');
+      let yy = dateInTextMatch[3];
+      if (yy.length === 2) yy = '20' + yy;
+      finalDate = `${yy}-${mm}-${dd}`;
+    }
+
+    // 6. Extract Account Ending and Reference Number for Notes
+    const acctMatch = text.match(/(?:account|a\/c|card)\s+ending\s+(\d{4})/i);
+    const refMatch = text.match(/(?:UPI transaction reference no\.?|reference no\.?|ref no\.?|txn ref no\.?)\s*:?\s*(\d+)/i);
+    let noteParts = [];
+    if (acctMatch) noteParts.push(`A/c *${acctMatch[1]}`);
+    if (refMatch) noteParts.push(`Ref: ${refMatch[1]}`);
+    if (meta.subject && !meta.subject.toLowerCase().includes('you have done a upi txn')) {
+      noteParts.push(meta.subject.substring(0, 40));
+    }
+    const notesStr = noteParts.length > 0 ? noteParts.join(' | ') : (meta.subject ? `HDFC: ${meta.subject.substring(0, 50)}` : 'HDFC Bank Alert');
+
+    // 7. Auto-Categorize based on merchant/keywords
     const combinedLower = (details + ' ' + lowerText).toLowerCase();
     let category = type === 'credit' ? 'UPI / Account Credit' : 'Miscellaneous';
 
     if (type === 'debit') {
-      if (/swiggy|zomato|restaurant|cafe|food|dining|dominos|pizza|kfc|mcdonald|starbucks|barbeque|eatfit|haldiram|bakery/.test(combinedLower)) {
+      if (/swiggy|zomato|restaurant|restaurent|cafe|food|dining|bar|pub|brewery|bistro|kitchen|dominos|pizza|kfc|mcdonald|starbucks|barbeque|eatfit|haldiram|bakery/.test(combinedLower)) {
         category = 'Food & Dining';
       } else if (/blinkit|zepto|instamart|bigbasket|dmart|d-mart|reliance smart|grocery|supermarket|ratnadeep|more retail|milk|vegetables/.test(combinedLower)) {
         category = 'Groceries';
@@ -510,9 +547,9 @@ class GmailScanner {
       type,
       category,
       paymentMethod,
-      date: meta.date || new Date().toISOString().split('T')[0],
+      date: finalDate,
       time: meta.time || '12:00',
-      notes: `HDFC Email: ${(meta.subject || '').substring(0, 60)}`,
+      notes: notesStr,
       snippet: meta.snippet || text.substring(0, 120),
       rawSubject: meta.subject || 'HDFC Bank Alert'
     };
