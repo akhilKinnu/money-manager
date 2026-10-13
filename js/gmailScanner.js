@@ -17,6 +17,21 @@ class GmailScanner {
 
   init() {
     this.setupEventListeners();
+
+    // Check if redirected from file:// with clientId in URL query params
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlClientId = params.get('clientId');
+      if (urlClientId) {
+        this.saveClientId(urlClientId);
+      }
+      if (params.get('openGmail') === '1') {
+        setTimeout(() => UI.openModal('gmailModal'), 300);
+        // Clean URL bar
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch (e) {}
+
     // Pre-fill saved client ID if present
     const input = document.getElementById('gmailClientIdInput');
     if (input && this.clientId) {
@@ -41,6 +56,13 @@ class GmailScanner {
     }
 
     this.saveClientId(clientId);
+
+    // Google OAuth strictly blocks origin=file:// (Error 400: invalid_request)
+    if (window.location.protocol === 'file:') {
+      UI.showToast('Redirecting from file:// to http://localhost:8080 for Google OAuth...', 'info');
+      window.location.href = `http://localhost:8080/?clientId=${encodeURIComponent(clientId)}&openGmail=1`;
+      return;
+    }
 
     if (!window.google || !window.google.accounts) {
       UI.showToast('Google Identity library not loaded. Check your internet connection.', 'error');

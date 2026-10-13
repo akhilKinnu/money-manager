@@ -1,10 +1,3 @@
 @echo off
-title FinTrack Pro Launcher
-echo ====================================================================
-echo        FinTrack Pro - Modern Expense and Income Manager
-echo ====================================================================
-echo.
-echo  Opening FinTrack Pro in your default web browser...
-echo.
-start "" "%~dp0index.html"
-exit
+title FinTrack Pro - Local Server (http://localhost:8080)
+powershell -ExecutionPolicy Bypass -File "%~dp0server.ps1"
