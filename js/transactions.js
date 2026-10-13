@@ -189,7 +189,7 @@ class TransactionManager {
     document.getElementById('modalTxDetails').value = tx.details;
     document.getElementById('modalTxAmount').value = tx.amount;
     document.getElementById('modalTxDate').value = tx.date;
-    document.getElementById('modalTxPaymentMethod').value = tx.paymentMethod || 'Bank Account';
+    document.getElementById('modalTxPaymentMethod').value = tx.paymentMethod || 'HDFC Bank Account';
     document.getElementById('modalTxNotes').value = tx.notes || '';
 
     this.setModalType(tx.type);
@@ -228,7 +228,7 @@ class TransactionManager {
       amount,
       type,
       category,
-      paymentMethod: 'Bank Account',
+      paymentMethod: 'HDFC Bank Account',
       date: new Date().toISOString().split('T')[0]
     });
 
@@ -355,9 +355,9 @@ class TransactionManager {
     if (transactions.length === 0) {
       container.innerHTML = `
         <div class="py-12 text-center text-slate-500">
-          <svg class="w-12 h-12 mx-auto mb-3 opacity-30 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
-          <p class="font-medium text-slate-400">No transactions yet</p>
-          <p class="text-xs text-slate-500 mt-1">Add your first transaction above or click "Load Demo Data" to explore.</p>
+          <svg class="w-12 h-12 mx-auto mb-3 opacity-30 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+          <p class="font-medium text-slate-400">No HDFC transactions loaded yet</p>
+          <p class="text-xs text-slate-500 mt-1">Click <button onclick="UI.openModal('gmailModal')" class="text-rose-400 underline font-semibold">Sync HDFC Gmail</button> to scan your inbox, or add an entry above.</p>
         </div>
       `;
       return;

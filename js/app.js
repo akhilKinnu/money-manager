@@ -159,6 +159,7 @@ class App {
           UI.closeModal('txModal');
           UI.closeModal('budgetModal');
           UI.closeModal('savingsGoalModal');
+          UI.closeModal('gmailModal');
         }
         return;
       }
@@ -178,6 +179,7 @@ class App {
         UI.closeModal('txModal');
         UI.closeModal('budgetModal');
         UI.closeModal('savingsGoalModal');
+        UI.closeModal('gmailModal');
       }
     });
   }

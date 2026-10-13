@@ -1,17 +1,14 @@
 /**
- * FinTrack Pro - Gmail Expense Scanner & Smart Parser
- * Connects to Gmail API (via Google Identity Services), reads financial transaction emails
- * (recent or historical/previous), parses Amount, Type (Credit/Debit), Merchant, Date,
- * and seamlessly adds them to FinTrack Pro with duplicate prevention.
+ * FinTrack Pro - HDFC Bank Gmail Inbox Scanner & Smart Parser
+ * Reads through the user's Gmail inbox, filters out HDFC Bank transaction emails
+ * (recent and historical/previous), and populates the expense dashboard.
  */
 
 class GmailScanner {
   constructor() {
     this.tokenClient = null;
     this.accessToken = null;
-    this.clientId = localStorage.getItem('fintrack_gdrive_config') 
-      ? JSON.parse(localStorage.getItem('fintrack_gdrive_config')).clientId 
-      : (localStorage.getItem('fintrack_gmail_client_id') || '');
+    this.clientId = localStorage.getItem('fintrack_gmail_client_id') || '';
     this.detectedTransactions = [];
     this.isScanning = false;
 
@@ -20,28 +17,33 @@ class GmailScanner {
 
   init() {
     this.setupEventListeners();
+    // Pre-fill saved client ID if present
+    const input = document.getElementById('gmailClientIdInput');
+    if (input && this.clientId) {
+      input.value = this.clientId;
+    }
   }
 
-  // Load or Save Client ID
   saveClientId(clientId) {
     this.clientId = clientId.trim();
     localStorage.setItem('fintrack_gmail_client_id', this.clientId);
   }
 
-  // Authorize with Google Identity Services for Gmail Readonly scope
+  // Authorize with Google Identity Services (gmail.readonly)
   connectGmail(callback = null) {
     const input = document.getElementById('gmailClientIdInput');
     const clientId = (input && input.value.trim()) || this.clientId;
 
     if (!clientId) {
-      UI.showToast('Please enter your Google OAuth Client ID to connect Gmail', 'warning');
+      UI.showToast('Please enter your Google OAuth Client ID first', 'warning');
+      if (input) input.focus();
       return;
     }
 
     this.saveClientId(clientId);
 
     if (!window.google || !window.google.accounts) {
-      UI.showToast('Google Identity library not loaded. Check internet.', 'error');
+      UI.showToast('Google Identity library not loaded. Check your internet connection.', 'error');
       return;
     }
 
@@ -53,9 +55,14 @@ class GmailScanner {
           if (tokenResponse && tokenResponse.access_token) {
             this.accessToken = tokenResponse.access_token;
             this.updateConnectedUI(true);
-            UI.showToast('Gmail connected successfully!', 'success');
-            if (callback) callback();
-            else this.scanEmails('recent');
+            UI.showToast('Connected to Gmail! Ready to scan HDFC Bank emails.', 'success');
+            if (callback) {
+              callback();
+            } else {
+              const timeframeSelect = document.getElementById('gmailTimeframeSelect');
+              const tf = timeframeSelect ? timeframeSelect.value : '30days';
+              this.scanEmails(tf);
+            }
           } else if (tokenResponse && tokenResponse.error) {
             UI.showToast(`Gmail Auth Error: ${tokenResponse.error}`, 'error');
           }
@@ -71,78 +78,115 @@ class GmailScanner {
 
   updateConnectedUI(isConnected) {
     const statusEl = document.getElementById('gmailConnectionStatus');
+    const headerStatusEl = document.getElementById('headerGmailStatusText');
+    const headerDotEl = document.getElementById('headerGmailDot');
     const btnConnect = document.getElementById('btnConnectGmail');
-    const btnScan = document.getElementById('btnStartGmailScan');
 
     if (statusEl) {
-      if (isConnected) {
-        statusEl.innerHTML = `
-          <div class="flex items-center gap-2 text-emerald-400 font-semibold text-xs">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            Connected to Gmail
-          </div>
-        `;
-      } else {
-        statusEl.innerHTML = `<span class="text-slate-400 text-xs">Not connected</span>`;
-      }
+      statusEl.innerHTML = isConnected
+        ? `<span class="flex items-center gap-1.5 text-emerald-400 font-semibold text-xs"><span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Gmail Connected</span>`
+        : `<span class="text-slate-400 text-xs">Not connected</span>`;
+    }
+
+    if (headerStatusEl) {
+      headerStatusEl.textContent = isConnected ? 'Gmail: Connected (HDFC)' : 'Sync HDFC Gmail';
+    }
+    if (headerDotEl) {
+      headerDotEl.className = isConnected ? 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse' : 'w-2 h-2 rounded-full bg-rose-400';
     }
 
     if (btnConnect) {
-      btnConnect.textContent = isConnected ? 'Reconnect Gmail' : 'Authorize & Connect Gmail';
-    }
-    if (btnScan) {
-      btnScan.disabled = !isConnected;
+      btnConnect.textContent = isConnected ? 'Reconnect Gmail' : 'Authorize Gmail';
     }
   }
 
-  // Build Gmail Search Query for Bank/Financial alerts
-  buildSearchQuery(timeframe, customQuery = '', startDate = '', endDate = '') {
-    // Keywords for Indian and international banks, UPI, cards, and payment alerts
-    const financialKeywords = '(debited OR credited OR "spent" OR "transaction alert" OR "paid to" OR "received from" OR "UPI" OR "payment to" OR "order confirmed" OR "refund" OR "statement" OR "salary credited")';
-    
-    let queryParts = [financialKeywords];
+  // Build Gmail Search Query specifically targeting HDFC Bank transaction alerts
+  buildHDFCSearchQuery(timeframe, customQuery = '', startDate = '', endDate = '') {
+    // Target HDFC Bank official domains & subjects
+    const hdfcSenderFilter = '(from:hdfcbank.net OR from:hdfcbank.com OR "HDFC Bank")';
+    const txKeywords = '(debited OR credited OR spent OR "alert" OR "transaction" OR "UPI" OR "VPA" OR "Acct" OR "A/c" OR "Card ending")';
+    const excludePromos = '-"pre-approved" -"personal loan" -"apply now" -"OTP is" -"One Time Password"';
+
+    let queryParts = [hdfcSenderFilter, txKeywords, excludePromos];
 
     if (customQuery && customQuery.trim()) {
       queryParts.push(`(${customQuery.trim()})`);
     }
 
     const now = new Date();
+    const getAfterDateStr = (daysAgo) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - daysAgo);
+      return d.toISOString().split('T')[0].replace(/-/g, '/');
+    };
 
-    if (timeframe === 'recent' || timeframe === '7days') {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 7);
-      const afterStr = d.toISOString().split('T')[0].replace(/-/g, '/');
-      queryParts.push(`after:${afterStr}`);
+    if (timeframe === '7days') {
+      queryParts.push(`after:${getAfterDateStr(7)}`);
     } else if (timeframe === '30days') {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 30);
-      const afterStr = d.toISOString().split('T')[0].replace(/-/g, '/');
-      queryParts.push(`after:${afterStr}`);
+      queryParts.push(`after:${getAfterDateStr(30)}`);
     } else if (timeframe === '90days') {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 90);
-      const afterStr = d.toISOString().split('T')[0].replace(/-/g, '/');
-      queryParts.push(`after:${afterStr}`);
+      queryParts.push(`after:${getAfterDateStr(90)}`);
+    } else if (timeframe === '180days') {
+      queryParts.push(`after:${getAfterDateStr(180)}`);
+    } else if (timeframe === '1year') {
+      queryParts.push(`after:${getAfterDateStr(365)}`);
     } else if (timeframe === 'custom') {
       if (startDate) queryParts.push(`after:${startDate.replace(/-/g, '/')}`);
       if (endDate) queryParts.push(`before:${endDate.replace(/-/g, '/')}`);
-    } else if (timeframe === 'all-previous') {
-      // Look back up to 1 year
-      const d = new Date(now);
-      d.setFullYear(d.getFullYear() - 1);
-      const afterStr = d.toISOString().split('T')[0].replace(/-/g, '/');
-      queryParts.push(`after:${afterStr}`);
     }
+    // If timeframe === 'all-history', no date restriction is added so it reads all previous HDFC emails!
 
     return queryParts.join(' ');
   }
 
-  // Scan emails from Gmail API
-  async scanEmails(timeframe = '30days', maxResults = 25) {
+  // Fetch list of message IDs from Gmail with pagination support
+  async fetchMessageList(query, maxTotal = 100) {
+    let messages = [];
+    let pageToken = null;
+
+    while (messages.length < maxTotal) {
+      const batchLimit = Math.min(100, maxTotal - messages.length);
+      let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${batchLimit}`;
+      if (pageToken) {
+        url += `&pageToken=${encodeURIComponent(pageToken)}`;
+      }
+
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${this.accessToken}` }
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          this.accessToken = null;
+          this.updateConnectedUI(false);
+          throw new Error('Gmail session expired. Please click Authorize Gmail again.');
+        }
+        throw new Error(`Gmail API returned status ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (data.messages && data.messages.length > 0) {
+        messages = messages.concat(data.messages);
+      }
+
+      if (!data.nextPageToken || messages.length >= maxTotal) {
+        break;
+      }
+      pageToken = data.nextPageToken;
+    }
+
+    return messages;
+  }
+
+  // Scan HDFC emails from Gmail API
+  async scanEmails(timeframe = '30days') {
     if (!this.accessToken) {
-      this.connectGmail(() => this.scanEmails(timeframe, maxResults));
+      this.connectGmail(() => this.scanEmails(timeframe));
       return;
     }
+
+    const maxCountSelect = document.getElementById('gmailMaxLimitSelect');
+    const maxResults = maxCountSelect ? parseInt(maxCountSelect.value, 10) || 50 : 50;
 
     const progressContainer = document.getElementById('gmailScanProgress');
     const progressBar = document.getElementById('gmailProgressBar');
@@ -150,33 +194,18 @@ class GmailScanner {
     const resultsContainer = document.getElementById('gmailResultsContainer');
 
     if (progressContainer) progressContainer.classList.remove('hidden');
-    if (progressText) progressText.textContent = 'Searching your Gmail messages...';
+    if (progressText) progressText.textContent = 'Searching Gmail inbox for HDFC Bank emails...';
     if (progressBar) progressBar.style.width = '15%';
 
     const customFilter = document.getElementById('gmailCustomFilter') ? document.getElementById('gmailCustomFilter').value : '';
     const customStart = document.getElementById('gmailCustomStart') ? document.getElementById('gmailCustomStart').value : '';
     const customEnd = document.getElementById('gmailCustomEnd') ? document.getElementById('gmailCustomEnd').value : '';
 
-    const query = this.buildSearchQuery(timeframe, customFilter, customStart, customEnd);
+    const query = this.buildHDFCSearchQuery(timeframe, customFilter, customStart, customEnd);
 
     try {
       this.isScanning = true;
-      const searchUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`;
-      
-      const searchRes = await fetch(searchUrl, {
-        headers: { Authorization: `Bearer ${this.accessToken}` }
-      });
-
-      if (!searchRes.ok) {
-        if (searchRes.status === 401) {
-          this.accessToken = null;
-          throw new Error('Session expired. Please reconnect Gmail.');
-        }
-        throw new Error(`Gmail API error (${searchRes.status})`);
-      }
-
-      const searchData = await searchRes.json();
-      const messages = searchData.messages || [];
+      const messages = await this.fetchMessageList(query, maxResults);
 
       if (messages.length === 0) {
         if (progressContainer) progressContainer.classList.add('hidden');
@@ -184,20 +213,19 @@ class GmailScanner {
           resultsContainer.innerHTML = `
             <div class="py-12 text-center text-slate-500">
               <svg class="w-12 h-12 mx-auto mb-2 opacity-30 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-              <p class="font-medium text-slate-300">No transaction emails found</p>
-              <p class="text-xs text-slate-500 mt-1">Try expanding the date range (e.g. Previous Emails / 90 Days) or clearing custom search terms.</p>
+              <p class="font-medium text-slate-300">No HDFC Bank transaction emails found</p>
+              <p class="text-xs text-slate-500 mt-1">Try selecting "All Previous HDFC Emails" or a wider timeframe above.</p>
             </div>
           `;
         }
-        UI.showToast('No transaction emails matched the search', 'info');
+        UI.showToast('No HDFC transaction emails found in this period', 'info');
         this.isScanning = false;
         return;
       }
 
-      if (progressText) progressText.textContent = `Found ${messages.length} potential emails. Reading details...`;
-      if (progressBar) progressBar.style.width = '35%';
+      if (progressText) progressText.textContent = `Found ${messages.length} HDFC emails. Parsing transactions...`;
+      if (progressBar) progressBar.style.width = '30%';
 
-      // Fetch each message and parse
       this.detectedTransactions = [];
       const existingIds = new Set(window.store.state.transactions.map(t => t.gmailMessageId).filter(Boolean));
 
@@ -209,24 +237,42 @@ class GmailScanner {
 
         if (msgRes.ok) {
           const msgData = await msgRes.json();
-          const parsed = this.parseGmailMessage(msgData);
+          const parsed = this.parseHDFCMessage(msgData);
           if (parsed) {
             parsed.alreadyImported = existingIds.has(msgId);
             this.detectedTransactions.push(parsed);
           }
         }
 
-        const pct = Math.round(35 + ((i + 1) / messages.length) * 60);
+        const pct = Math.round(30 + ((i + 1) / messages.length) * 65);
         if (progressBar) progressBar.style.width = `${pct}%`;
-        if (progressText) progressText.textContent = `Analyzed ${i + 1} of ${messages.length} emails (${this.detectedTransactions.length} transactions detected)...`;
+        if (progressText) {
+          progressText.textContent = `Reading email ${i + 1} of ${messages.length} (${this.detectedTransactions.length} HDFC transactions extracted)...`;
+        }
       }
 
       if (progressContainer) progressContainer.classList.add('hidden');
       this.renderDetectedTransactions();
-      UI.showToast(`Found ${this.detectedTransactions.length} transaction entries from Gmail!`, 'success');
+
+      // Check if Auto-Import checkbox is enabled
+      const autoImportChk = document.getElementById('gmailAutoImportCheckbox');
+      if (autoImportChk && autoImportChk.checked && this.detectedTransactions.length > 0) {
+        const newItems = this.detectedTransactions.filter(t => !t.alreadyImported);
+        if (newItems.length > 0) {
+          const added = window.store.addBatchTransactions(newItems);
+          UI.showToast(`Auto-imported ${added} new HDFC transactions into your dashboard!`, 'success');
+          // Mark them as imported in the view
+          this.detectedTransactions.forEach(t => { t.alreadyImported = true; });
+          this.renderDetectedTransactions();
+        } else {
+          UI.showToast(`All ${this.detectedTransactions.length} HDFC transactions are already in your ledger.`, 'info');
+        }
+      } else {
+        UI.showToast(`Extracted ${this.detectedTransactions.length} HDFC transactions! Review below.`, 'success');
+      }
 
     } catch (err) {
-      console.error('Error scanning Gmail', err);
+      console.error('Error scanning HDFC Gmail', err);
       if (progressContainer) progressContainer.classList.add('hidden');
       UI.showToast(`Scan error: ${err.message}`, 'error');
     } finally {
@@ -234,7 +280,7 @@ class GmailScanner {
     }
   }
 
-  // Helper to extract body text from Gmail payload
+  // Decode base64url Gmail body parts
   extractBodyText(payload) {
     let text = '';
 
@@ -256,7 +302,6 @@ class GmailScanner {
         if (part.mimeType === 'text/plain' && part.body && part.body.data) {
           text += ' ' + decodeBase64(part.body.data);
         } else if (part.mimeType === 'text/html' && part.body && part.body.data) {
-          // Strip basic HTML tags
           const html = decodeBase64(part.body.data);
           const tmp = document.createElement('div');
           tmp.innerHTML = html;
@@ -270,9 +315,9 @@ class GmailScanner {
     return text;
   }
 
-  // Smart Parser for Indian & International Bank/UPI Alerts
-  parseGmailMessage(msgData) {
-    const headers = msgData.payload.headers || [];
+  // Parse Gmail message object
+  parseHDFCMessage(msgData) {
+    const headers = (msgData.payload && msgData.payload.headers) || [];
     const getHeader = (name) => {
       const h = headers.find(x => x.name.toLowerCase() === name.toLowerCase());
       return h ? h.value : '';
@@ -282,59 +327,55 @@ class GmailScanner {
     const from = getHeader('From');
     const dateHeader = getHeader('Date');
 
-    // Parse date
     let dateStr = new Date().toISOString().split('T')[0];
+    let timeStr = '12:00';
     try {
-      if (msgData.internalDate) {
-        dateStr = new Date(parseInt(msgData.internalDate)).toISOString().split('T')[0];
-      } else if (dateHeader) {
-        dateStr = new Date(dateHeader).toISOString().split('T')[0];
+      const dObj = msgData.internalDate ? new Date(parseInt(msgData.internalDate)) : new Date(dateHeader);
+      if (!isNaN(dObj.getTime())) {
+        dateStr = dObj.toISOString().split('T')[0];
+        timeStr = dObj.toTimeString().split(' ')[0].substring(0, 5);
       }
     } catch {}
 
     const bodyText = (subject + ' ' + this.extractBodyText(msgData.payload)).replace(/\s+/g, ' ');
 
-    return this.parseFinancialText(bodyText, {
+    return this.parseHDFCText(bodyText, {
       id: msgData.id,
       subject,
       from,
       date: dateStr,
+      time: timeStr,
       snippet: msgData.snippet
     });
   }
 
-  // Parse raw text for amount, type (credit/debit), merchant, and category
-  parseFinancialText(text, meta = {}) {
-    // 1. Detect Type (Credit vs Debit)
-    let type = 'debit'; // default to expense
-    const creditKeywords = [
-      /credited/i, /received\s+(?:rs|inr|₹|\$)/i, /refund/i, /salary/i,
-      /deposited/i, /cashback/i, /credited\s+with/i, /credited\s+by/i
-    ];
+  // Specialized HDFC Bank Alert Parser
+  parseHDFCText(text, meta = {}) {
+    // Ignore OTPs, login alerts, or marketing offers without an actual transaction
+    if (/one time password|otp is|pre-approved|loan offer|upgrade your credit limit|e-statement/i.test(text) && !/has been debited|has been credited|was spent|thank you for using/i.test(text)) {
+      return null;
+    }
 
-    const debitKeywords = [
-      /debited/i, /spent/i, /paid\s+to/i, /purchase\s+of/i, /withdrawn/i,
-      /sent\s+(?:rs|inr|₹|\$)/i, /txn\s+of/i, /charged/i, /order\s+confirmed/i
-    ];
+    // 1. Determine Credit vs Debit
+    let type = 'debit';
+    const isDebitMatch = /(?:has been debited|debited from|was spent|spent on your|thank you for using your hdfc|withdrawn|paid to|sent to|debited for)/i.test(text);
+    const isCreditMatch = /(?:has been credited|is successfully credited|credited to your|credited with|deposited in|refund of|reversal)/i.test(text);
 
-    let isCredit = creditKeywords.some(regex => regex.test(text));
-    let isDebit = debitKeywords.some(regex => regex.test(text));
-
-    if (isCredit && !isDebit) {
+    if (isCreditMatch && !isDebitMatch) {
       type = 'credit';
-    } else if (isDebit) {
+    } else if (isDebitMatch) {
       type = 'debit';
-    } else if (/credit/i.test(text) && !/credit\s+card/i.test(text)) {
+    } else if (/credited/i.test(text) && !/credit card/i.test(text)) {
       type = 'credit';
     }
 
-    // 2. Detect Amount (₹, INR, Rs., USD $, etc.)
-    // Matches formats: Rs. 1,250.00, INR 500, ₹499.50, $45.00
+    // 2. Extract Transaction Amount (Rs., INR, ₹)
+    // HDFC patterns: "Rs.120.00 has been debited", "for Rs 2,340.00 at", "credited with INR 15,000.00"
     const amountPatterns = [
-      /(?:INR|Rs\.?|₹)\s*([\d,]+(?:\.\d{1,2})?)/i,
-      /(?:debited|credited|spent|paid|withdrawn|charged|txn of)\s*(?:by|for|with)?\s*(?:INR|Rs\.?|₹|\$)?\s*([\d,]+(?:\.\d{1,2})?)/i,
-      /\$\s*([\d,]+(?:\.\d{1,2})?)/,
-      /(?:amount|amt)[\s:]*(?:INR|Rs\.?|₹|\$)?\s*([\d,]+(?:\.\d{1,2})?)/i
+      /(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{1,2})?)\s*(?:has been|is successfully|was spent|debited|credited|withdrawn|deducted)/i,
+      /(?:for|of|with|by|amount of)\s*(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{1,2})?)/i,
+      /(?:debited|credited|spent|paid)\s*(?:by|with|for|of)?\s*(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{1,2})?)/i,
+      /(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{1,2})?)/i
     ];
 
     let amount = 0;
@@ -343,110 +384,118 @@ class GmailScanner {
       if (match && match[1]) {
         const cleaned = match[1].replace(/,/g, '');
         const val = parseFloat(cleaned);
-        if (!isNaN(val) && val > 0 && val < 50000000) { // filter out phone numbers/account numbers
+        if (!isNaN(val) && val > 0 && val < 50000000) {
           amount = val;
           break;
         }
       }
     }
 
-    if (!amount || isNaN(amount) || amount <= 0) {
-      return null; // Not a valid financial alert
+    if (!amount || amount <= 0) {
+      return null;
     }
 
-    // 3. Extract Merchant / Details / Beneficiary
-    let details = 'Bank Transaction';
-    const merchantPatterns = [
-      /(?:paid to|transferred to|vpa|to VPA|info|at|spent at)\s+([A-Za-z0-9\s&'-]{3,25})(?:\s+on|\s+ref|\s+upi|\s+for|\.|\n)/i,
-      /(?:order with|purchase at|merchant)\s+([A-Za-z0-9\s&'-]{3,25})/i,
-      /(?:from VPA|received from|credited by)\s+([A-Za-z0-9\s&'-]{3,25})/i
+    // 3. Extract Merchant / VPA / Counterparty from HDFC Alert
+    let details = type === 'credit' ? 'HDFC Account Credit' : 'HDFC Bank Debit';
+
+    const hdfcMerchantPatterns = [
+      // HDFC UPI VPA pattern: "to VPA swiggy@axisbank (Name) on" or "to VPA merchant@okaxis on"
+      /to VPA\s+([^\s]+(?:\s+\([^)]+\))?)\s+on/i,
+      // HDFC Credit/Debit Card pattern: "for Rs 1,200.00 at AMAZON PAY on"
+      /(?:Rs\.?|INR|₹)\s*[\d,]+(?:\.\d{1,2})?\s+at\s+([A-Za-z0-9\s&.,'*-]{2,35}?)\s+on\s+\d/i,
+      // HDFC UPI Info pattern: "towards UPI/P2M/12345/SWIGGY"
+      /towards\s+([A-Za-z0-9\s/_.-]{3,35}?)(?:\s+on\s+|\s+Ref|\.)/i,
+      // HDFC Credit by VPA/Sender: "by VPA sender@okicici" or "by NEFT/IMPS from Name"
+      /(?:by VPA|from VPA|credited by)\s+([^\s.]+(?:\s+\([^)]+\))?)/i,
+      // General "paid to" / "at"
+      /(?:paid to|spent at|at)\s+([A-Za-z0-9\s&'-]{3,28}?)(?:\s+on|\s+ref|\s+using|\.)/i
     ];
 
-    for (const p of merchantPatterns) {
-      const m = text.match(p);
-      if (m && m[1]) {
-        const cleanM = m[1].trim();
-        if (cleanM && !cleanM.toLowerCase().includes('bank') && cleanM.length > 2) {
-          details = cleanM;
+    for (const pattern of hdfcMerchantPatterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        let extracted = match[1].trim();
+        // Clean up VPA handle if readable name exists
+        if (extracted.includes('@')) {
+          const parenMatch = extracted.match(/\(([^)]+)\)/);
+          if (parenMatch && parenMatch[1]) {
+            extracted = parenMatch[1].trim();
+          } else {
+            extracted = extracted.split('@')[0].replace(/[._-]/g, ' ').toUpperCase();
+          }
+        }
+        if (extracted.length >= 2) {
+          details = extracted;
           break;
         }
       }
     }
 
-    // If details is still default, try subject or bank name
-    if (details === 'Bank Transaction' && meta.subject) {
-      const cleanSubject = meta.subject
-        .replace(/(?:Fwd:|Re:|Notification:|Alert:)/gi, '')
-        .replace(/(?:debited|credited|transaction|update)/gi, '')
-        .trim();
-      if (cleanSubject.length > 3) details = cleanSubject.substring(0, 32);
-    }
-
-    // 4. Smart Category & Payment Method Detection
+    // 4. Detect HDFC Payment Channel
     const lowerText = text.toLowerCase();
-    let category = type === 'credit' ? 'Other Income' : 'Miscellaneous';
-    let paymentMethod = 'Bank Account';
+    let paymentMethod = 'HDFC Bank Account';
 
-    if (lowerText.includes('upi') || lowerText.includes('vpa') || lowerText.includes('gpay') || lowerText.includes('phonepe') || lowerText.includes('paytm')) {
-      paymentMethod = 'UPI / Digital Wallet';
+    if (lowerText.includes('upi') || lowerText.includes('vpa')) {
+      paymentMethod = 'HDFC UPI';
     } else if (lowerText.includes('credit card')) {
-      paymentMethod = 'Credit Card';
-    } else if (lowerText.includes('debit card')) {
-      paymentMethod = 'Debit Card';
-    } else if (lowerText.includes('net banking') || lowerText.includes('neft') || lowerText.includes('rtgs') || lowerText.includes('imps')) {
-      paymentMethod = 'Net Banking';
+      paymentMethod = 'HDFC Credit Card';
+    } else if (lowerText.includes('debit card') || lowerText.includes('atm')) {
+      paymentMethod = 'HDFC Debit Card';
+    } else if (lowerText.includes('netbanking') || lowerText.includes('neft') || lowerText.includes('imps') || lowerText.includes('rtgs') || lowerText.includes('billpay')) {
+      paymentMethod = 'HDFC NetBanking';
     }
 
-    // Category mapping
+    // 5. Auto-Categorize based on merchant/keywords
+    const combinedLower = (details + ' ' + lowerText).toLowerCase();
+    let category = type === 'credit' ? 'UPI / Account Credit' : 'Miscellaneous';
+
     if (type === 'debit') {
-      if (lowerText.includes('swiggy') || lowerText.includes('zomato') || lowerText.includes('restaurant') || lowerText.includes('cafe') || lowerText.includes('dining') || lowerText.includes('mcdonald') || lowerText.includes('starbucks') || lowerText.includes('burger')) {
+      if (/swiggy|zomato|restaurant|cafe|food|dining|dominos|pizza|kfc|mcdonald|starbucks|barbeque|eatfit|haldiram|bakery/.test(combinedLower)) {
         category = 'Food & Dining';
-      } else if (lowerText.includes('blinkit') || lowerText.includes('zepto') || lowerText.includes('instamart') || lowerText.includes('grocery') || lowerText.includes('bigbasket') || lowerText.includes('supermarket') || lowerText.includes('milk')) {
+      } else if (/blinkit|zepto|instamart|bigbasket|dmart|d-mart|reliance smart|grocery|supermarket|ratnadeep|more retail|milk|vegetables/.test(combinedLower)) {
         category = 'Groceries';
-      } else if (lowerText.includes('uber') || lowerText.includes('ola') || lowerText.includes('rapido') || lowerText.includes('metro') || lowerText.includes('petrol') || lowerText.includes('fuel') || lowerText.includes('fuel station')) {
+      } else if (/uber|ola|rapido|irctc|metro|petrol|fuel|hpcl|bpcl|indian oil|shell|fastag|parking|redbus/.test(combinedLower)) {
         category = 'Transportation';
-      } else if (lowerText.includes('amazon') || lowerText.includes('flipkart') || lowerText.includes('myntra') || lowerText.includes('shopping') || lowerText.includes('retail') || lowerText.includes('store') || lowerText.includes('zara')) {
+      } else if (/amazon|flipkart|myntra|ajio|nykaa|meesho|decathlon|tata cliq|reliance digital|croma|ikea|zara|h&m|shopping|retail/.test(combinedLower)) {
         category = 'Shopping';
-      } else if (lowerText.includes('electricity') || lowerText.includes('bescom') || lowerText.includes('tneb') || lowerText.includes('airtel') || lowerText.includes('jio') || lowerText.includes('broadband') || lowerText.includes('water bill') || lowerText.includes('gas bill')) {
+      } else if (/airtel|jio|vi |vodafone|bsnl|act fibernet|bescom|electricity|water|gas|indane|bharatgas|hp gas|billpay|recharge|dth|tataplay/.test(combinedLower)) {
         category = 'Utilities & Bills';
-      } else if (lowerText.includes('rent') || lowerText.includes('housing') || lowerText.includes('maintenance')) {
+      } else if (/rent|landlord|nobroker|society|maintenance/.test(combinedLower)) {
         category = 'Housing & Rent';
-      } else if (lowerText.includes('netflix') || lowerText.includes('spotify') || lowerText.includes('prime video') || lowerText.includes('hotstar') || lowerText.includes('cinema') || lowerText.includes('pvr') || lowerText.includes('bookmyshow')) {
+      } else if (/netflix|spotify|prime|hotstar|youtube|bookmyshow|pvr|inox|gaming|steam|playstation/.test(combinedLower)) {
         category = 'Entertainment';
-      } else if (lowerText.includes('hospital') || lowerText.includes('pharmacy') || lowerText.includes('apollo') || lowerText.includes('medplus') || lowerText.includes('clinic') || lowerText.includes('doctor')) {
+      } else if (/apollo|medplus|pharmeasy|1mg|netmeds|hospital|clinic|diagnostic|pharmacy|medical|doctor|health|cultfit|gym/.test(combinedLower)) {
         category = 'Health & Medical';
-      } else if (lowerText.includes('zerodha') || lowerText.includes('groww') || lowerText.includes('mutual fund') || lowerText.includes('sip') || lowerText.includes('stocks') || lowerText.includes('investment')) {
+      } else if (/zerodha|groww|upstox|kuvera|coin|mutual fund|sip|nps|ppf|lic|insurance/.test(combinedLower)) {
         category = 'Investments';
-      } else if (lowerText.includes('flight') || lowerText.includes('makemytrip') || lowerText.includes('irctc') || lowerText.includes('hotel') || lowerText.includes('airbnb') || lowerText.includes('travel')) {
+      } else if (/makemytrip|goibibo|cleartrip|indigo|air india|vistara|airbnb|oyo|hotel|flight/.test(combinedLower)) {
         category = 'Travel & Vacations';
       }
     } else {
-      if (lowerText.includes('salary') || lowerText.includes('payroll')) {
+      if (/salary|payroll|stipend/.test(combinedLower)) {
         category = 'Monthly Salary';
-      } else if (lowerText.includes('dividend') || lowerText.includes('interest')) {
+      } else if (/dividend|interest|maturity/.test(combinedLower)) {
         category = 'Investments & Dividends';
-      } else if (lowerText.includes('refund') || lowerText.includes('cashback')) {
-        category = 'Cashback & Refunds';
-      } else if (lowerText.includes('client') || lowerText.includes('freelance') || lowerText.includes('consulting')) {
-        category = 'Freelance & Projects';
+      } else if (/refund|reversal|cashback/.test(combinedLower)) {
+        category = 'Refunds & Cashback';
       }
     }
 
     return {
-      gmailMessageId: meta.id || ('manual_' + Date.now()),
-      details: details.trim(),
+      gmailMessageId: meta.id || ('hdfc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)),
+      details: details,
       amount,
       type,
       category,
       paymentMethod,
-      date: meta.date || dateStr,
-      notes: `Imported from email: "${(meta.subject || details).substring(0, 50)}"`,
-      snippet: meta.snippet || text.substring(0, 100),
-      rawSubject: meta.subject || ''
+      date: meta.date || new Date().toISOString().split('T')[0],
+      time: meta.time || '12:00',
+      notes: `HDFC Email: ${(meta.subject || '').substring(0, 60)}`,
+      snippet: meta.snippet || text.substring(0, 120),
+      rawSubject: meta.subject || 'HDFC Bank Alert'
     };
   }
 
-  // Render Detected Transactions in UI Modal
   renderDetectedTransactions() {
     const container = document.getElementById('gmailResultsContainer');
     const countBadge = document.getElementById('gmailDetectedCount');
@@ -454,13 +503,13 @@ class GmailScanner {
 
     if (!container) return;
 
-    if (countBadge) countBadge.textContent = `${this.detectedTransactions.length} detected`;
+    if (countBadge) countBadge.textContent = `${this.detectedTransactions.length} HDFC transactions found`;
 
     if (this.detectedTransactions.length === 0) {
       container.innerHTML = `
         <div class="py-10 text-center text-slate-500">
-          <p class="font-medium text-slate-400">No transactions detected</p>
-          <p class="text-xs text-slate-500 mt-1">Try scanning again or using the Manual Paste box below.</p>
+          <p class="font-medium text-slate-400">No HDFC transactions extracted yet</p>
+          <p class="text-xs text-slate-500 mt-1">Click "Scan HDFC Emails" above or test with the paste box below.</p>
         </div>
       `;
       if (actionsBar) actionsBar.classList.add('hidden');
@@ -471,12 +520,12 @@ class GmailScanner {
 
     container.innerHTML = `
       <div class="space-y-2">
-        <div class="flex items-center justify-between text-xs font-semibold text-slate-400 px-3 py-1 bg-slate-800/60 rounded-lg">
+        <div class="flex items-center justify-between text-xs font-semibold text-slate-400 px-3 py-1.5 bg-slate-800/60 rounded-lg">
           <div class="flex items-center gap-2">
             <input type="checkbox" id="selectAllGmailTx" checked class="rounded border-slate-700 text-indigo-600 cursor-pointer" onchange="window.gmailScanner.toggleSelectAll(this.checked)">
-            <span>Select All (${this.detectedTransactions.length})</span>
+            <span>Select All New</span>
           </div>
-          <span>Amount</span>
+          <span>Detected Amount</span>
         </div>
 
         ${this.detectedTransactions.map((tx, idx) => {
@@ -485,8 +534,8 @@ class GmailScanner {
 
           return `
             <div class="p-3 rounded-xl border transition-all ${
-              isDuplicate 
-                ? 'bg-slate-900/40 border-slate-800 opacity-60' 
+              isDuplicate
+                ? 'bg-slate-900/40 border-slate-800 opacity-60'
                 : 'bg-slate-800/40 hover:bg-slate-800/80 border-slate-700/60'
             }">
               <div class="flex items-start justify-between gap-3">
@@ -499,8 +548,8 @@ class GmailScanner {
                       }">
                         ${isCredit ? 'Credit (+)' : 'Debit (-)'}
                       </span>
-                      <span class="font-semibold text-slate-200 text-xs truncate max-w-[180px] sm:max-w-xs">${tx.details}</span>
-                      ${isDuplicate ? `<span class="text-[10px] bg-slate-700 text-slate-400 px-1.5 py-0.2 rounded font-medium">Already Added</span>` : ''}
+                      <span class="font-semibold text-slate-200 text-xs truncate max-w-[200px] sm:max-w-xs">${tx.details}</span>
+                      ${isDuplicate ? `<span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.2 rounded font-medium">✓ In Ledger</span>` : ''}
                     </div>
 
                     <div class="flex items-center gap-2 text-[11px] text-slate-400 mt-1 flex-wrap">
@@ -508,10 +557,10 @@ class GmailScanner {
                       <span>•</span>
                       <span>${tx.date}</span>
                       <span>•</span>
-                      <span>${tx.paymentMethod}</span>
+                      <span class="text-indigo-400 font-medium">${tx.paymentMethod}</span>
                     </div>
 
-                    <p class="text-[11px] text-slate-500 italic mt-1 line-clamp-1">${tx.rawSubject || tx.snippet}</p>
+                    <p class="text-[11px] text-slate-500 italic mt-1 line-clamp-1">${tx.snippet}</p>
                   </div>
                 </div>
 
@@ -535,7 +584,6 @@ class GmailScanner {
     });
   }
 
-  // Import Selected Transactions into FinTrack Pro Ledger
   importSelectedTransactions() {
     const selected = [];
     this.detectedTransactions.forEach((tx, idx) => {
@@ -546,69 +594,50 @@ class GmailScanner {
     });
 
     if (selected.length === 0) {
-      UI.showToast('No transactions selected for import', 'warning');
+      UI.showToast('No transactions selected to import', 'warning');
       return;
     }
 
-    let addedCount = 0;
-    selected.forEach(tx => {
-      window.store.addTransaction({
-        details: tx.details,
-        amount: tx.amount,
-        type: tx.type,
-        category: tx.category,
-        paymentMethod: tx.paymentMethod,
-        date: tx.date,
-        notes: tx.notes,
-        gmailMessageId: tx.gmailMessageId
-      });
-      addedCount++;
-    });
-
-    UI.showToast(`Successfully imported ${addedCount} transactions from Gmail!`, 'success');
+    const addedCount = window.store.addBatchTransactions(selected);
+    UI.showToast(`Imported ${addedCount} HDFC transactions to your dashboard!`, 'success');
     UI.triggerCelebration();
     UI.closeModal('gmailModal');
   }
 
-  // Manual Paste Email Parser (Zero-OAuth Quick Mode)
   parseManualEmailText() {
     const textarea = document.getElementById('manualEmailTextarea');
     if (!textarea || !textarea.value.trim()) {
-      UI.showToast('Please paste email text first', 'warning');
+      UI.showToast('Please paste an HDFC email/alert text first', 'warning');
       return;
     }
 
     const text = textarea.value.trim();
-    const parsed = this.parseFinancialText(text, {
-      subject: 'Pasted Email Alert',
+    const parsed = this.parseHDFCText(text, {
+      subject: 'Manual HDFC Alert',
       date: new Date().toISOString().split('T')[0]
     });
 
     if (!parsed) {
-      UI.showToast('Could not detect financial amount or transaction details in this text', 'error');
+      UI.showToast('Could not detect a valid transaction amount in the text', 'error');
       return;
     }
 
-    // Add to detected list and show
     this.detectedTransactions = [parsed];
     this.renderDetectedTransactions();
-    UI.showToast(`Detected: ${parsed.type.toUpperCase()} ${UI.formatCurrency(parsed.amount)} for ${parsed.details}!`, 'success');
+    UI.showToast(`Extracted: ${parsed.type.toUpperCase()} ${UI.formatCurrency(parsed.amount)} (${parsed.details})`, 'success');
   }
 
   setupEventListeners() {
-    // Open Gmail Modal button
     const btnOpen = document.getElementById('btnOpenGmailModal');
     if (btnOpen) {
       btnOpen.addEventListener('click', () => UI.openModal('gmailModal'));
     }
 
-    // Connect Gmail button
     const btnConnect = document.getElementById('btnConnectGmail');
     if (btnConnect) {
       btnConnect.addEventListener('click', () => this.connectGmail());
     }
 
-    // Start Scan button
     const btnScan = document.getElementById('btnStartGmailScan');
     if (btnScan) {
       btnScan.addEventListener('click', () => {
@@ -618,7 +647,6 @@ class GmailScanner {
       });
     }
 
-    // Timeframe selector change (toggle custom date range)
     const timeframeSelect = document.getElementById('gmailTimeframeSelect');
     if (timeframeSelect) {
       timeframeSelect.addEventListener('change', (e) => {
@@ -633,13 +661,11 @@ class GmailScanner {
       });
     }
 
-    // Import selected button
     const btnImport = document.getElementById('btnImportGmailSelected');
     if (btnImport) {
       btnImport.addEventListener('click', () => this.importSelectedTransactions());
     }
 
-    // Manual email paste parse button
     const btnParseManual = document.getElementById('btnParseManualEmail');
     if (btnParseManual) {
       btnParseManual.addEventListener('click', () => this.parseManualEmailText());

@@ -32,17 +32,8 @@
   <!-- Canvas Confetti CDN -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
-  <!-- Firebase Compat SDK (Auth & Firestore) -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-  <!-- Supabase JS CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Google Identity Services (GIS) & Google Drive API Client -->
+  <!-- Google Identity Services (GIS) for Gmail Readonly OAuth -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://apis.google.com/js/api.js" async defer></script>
 
   <!-- Custom CSS -->
   <link rel="stylesheet" href="css/styles.css">
@@ -70,29 +61,24 @@
           <div>
             <div class="flex items-center gap-2">
               <span class="text-lg font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">FinTrack<span class="text-indigo-400">Pro</span></span>
-              <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v2.0</span>
+              <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">HDFC Edition</span>
             </div>
             <p class="text-[11px] text-slate-400 hidden sm:block flex items-center gap-1.5">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
-              Local & Secure • Private on Device
+              Direct Gmail Reader • Zero External DB
             </p>
           </div>
         </div>
 
         <!-- Global Action Controls -->
         <div class="flex items-center gap-2 sm:gap-3">
-          <!-- Cloud Status Badge Button -->
-          <button id="cloudStatusBadge" title="Cloud Sync & Multi-Device Setup" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700/80 cursor-pointer hover:bg-slate-750 hover:border-indigo-500/50 transition-all">
-            <span id="cloudStatusDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
-            <span id="cloudStatusText" class="truncate max-w-[110px] sm:max-w-none">Cloud Sync</span>
-          </button>
-
-          <!-- Gmail Auto-Import Button -->
-          <button id="btnOpenGmailModal" title="Read & Import Transactions from Gmail" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30 cursor-pointer hover:bg-rose-500/25 transition-all">
+          <!-- HDFC Gmail Auto-Import Button -->
+          <button id="btnOpenGmailModal" title="Scan & Import HDFC Bank Transactions from Gmail" class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 cursor-pointer hover:bg-rose-500/25 transition-all shadow-sm">
+            <span id="headerGmailDot" class="w-2 h-2 rounded-full bg-rose-400"></span>
             <svg class="w-3.5 h-3.5 text-rose-400" viewBox="0 0 24 24" fill="currentColor">
               <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
             </svg>
-            <span class="hidden sm:inline">Gmail Import</span>
+            <span id="headerGmailStatusText">Sync HDFC Gmail</span>
           </button>
 
           <!-- Currency Picker -->
@@ -102,10 +88,6 @@
               <option value="USD">$ USD</option>
               <option value="EUR">€ EUR</option>
               <option value="GBP">£ GBP</option>
-              <option value="JPY">¥ JPY</option>
-              <option value="CAD">CA$ CAD</option>
-              <option value="AUD">AU$ AUD</option>
-              <option value="SGD">SG$ SGD</option>
               <option value="AED">AED</option>
             </select>
           </div>
@@ -115,12 +97,6 @@
             <span id="themeToggleIcon">
               <svg class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
             </span>
-          </button>
-
-          <!-- Load Demo Data Button -->
-          <button onclick="window.store.loadDemoData(); UI.showToast('Demo dataset loaded!', 'success')" title="Reset to Sample Data" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors">
-            <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-            Demo Data
           </button>
 
           <!-- Add Transaction Primary Button -->
@@ -164,11 +140,11 @@
 
         <!-- Timeframe Preset Switcher -->
         <div class="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 overflow-x-auto text-xs">
-          <button data-timeframe="this-month" class="timeframe-active px-2.5 py-1 rounded-lg font-medium transition-all">This Month</button>
+          <button data-timeframe="all" class="timeframe-active px-2.5 py-1 rounded-lg font-medium transition-all">All Time</button>
+          <button data-timeframe="this-month" class="timeframe-inactive px-2.5 py-1 rounded-lg font-medium transition-all">This Month</button>
           <button data-timeframe="last-month" class="timeframe-inactive px-2.5 py-1 rounded-lg font-medium transition-all">Last Month</button>
           <button data-timeframe="last-30-days" class="timeframe-inactive px-2.5 py-1 rounded-lg font-medium transition-all">Last 30D</button>
           <button data-timeframe="this-year" class="timeframe-inactive px-2.5 py-1 rounded-lg font-medium transition-all">This Year</button>
-          <button data-timeframe="all" class="timeframe-inactive px-2.5 py-1 rounded-lg font-medium transition-all">All Time</button>
           <button data-timeframe="custom" class="timeframe-inactive px-2.5 py-1 rounded-lg font-medium transition-all">Custom</button>
         </div>
 
@@ -734,30 +710,30 @@
           </div>
         </div>
 
-        <!-- Card: Demo Data & Reset -->
+        <!-- Card: HDFC Gmail Sync & Local Reset -->
         <div class="glass-panel p-6 rounded-2xl space-y-5">
           <div>
-            <h3 class="text-base font-bold text-slate-100">Demo Data & Diagnostics</h3>
-            <p class="text-xs text-slate-400">Load sample realistic transactions or completely reset storage</p>
+            <h3 class="text-base font-bold text-slate-100">HDFC Gmail Sync & Reset</h3>
+            <p class="text-xs text-slate-400">Sync transactions directly from HDFC Bank emails or clear local session</p>
           </div>
 
           <div class="space-y-3">
             <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/40">
               <div>
-                <p class="font-semibold text-sm text-slate-200">Populate Realistic Sample Data</p>
-                <p class="text-xs text-slate-400">Adds 30+ transactions across various categories</p>
+                <p class="font-semibold text-sm text-slate-200">Sync HDFC Bank Emails from Gmail</p>
+                <p class="text-xs text-slate-400">Fetch recent or historical HDFC alerts directly from your Gmail inbox</p>
               </div>
-              <button onclick="window.store.loadDemoData(); UI.showToast('Sample dataset loaded!', 'success')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors">
-                Load Demo
+              <button onclick="UI.openModal('gmailModal')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white transition-colors">
+                Open HDFC Sync
               </button>
             </div>
 
             <div class="flex items-center justify-between p-3.5 rounded-xl bg-rose-950/20 border border-rose-500/20">
               <div>
                 <p class="font-semibold text-sm text-rose-300">Wipe All Local Data</p>
-                <p class="text-xs text-slate-400">Irreversibly delete all transactions and reset</p>
+                <p class="text-xs text-slate-400">Irreversibly delete all synced transactions and reset view</p>
               </div>
-              <button onclick="if(confirm('Are you absolutely sure you want to delete all transactions and reset data?')) { window.store.clearAll(); UI.showToast('All data cleared', 'info'); }" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white transition-colors">
+              <button onclick="if(confirm('Are you absolutely sure you want to clear all synced transactions?')) { window.store.clearAll(); UI.showToast('All data cleared', 'info'); }" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white transition-colors">
                 Clear All
               </button>
             </div>
@@ -802,13 +778,13 @@
         <!-- Details / Title -->
         <div class="space-y-1.5">
           <label class="text-xs font-semibold text-slate-300">Details / Description <span class="text-rose-400">*</span></label>
-          <input type="text" id="modalTxDetails" required placeholder="e.g. Whole Foods Groceries, Salary, Dinner" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500">
+          <input type="text" id="modalTxDetails" required placeholder="e.g. Swiggy, Zomato, Monthly Salary" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500">
         </div>
 
         <!-- Amount & Date -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="space-y-1.5">
-            <label class="text-xs font-semibold text-slate-300">Amount <span class="text-rose-400">*</span></label>
+            <label class="text-xs font-semibold text-slate-300">Amount (₹) <span class="text-rose-400">*</span></label>
             <input type="number" step="0.01" min="0.01" id="modalTxAmount" required placeholder="0.00" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 font-mono">
           </div>
           <div class="space-y-1.5">
@@ -826,15 +802,14 @@
             </select>
           </div>
           <div class="space-y-1.5">
-            <label class="text-xs font-semibold text-slate-300">Payment Account</label>
+            <label class="text-xs font-semibold text-slate-300">Payment Channel</label>
             <select id="modalTxPaymentMethod" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 cursor-pointer">
-              <option value="Bank Account">Bank Account</option>
-              <option value="Credit Card">Credit Card</option>
-              <option value="Debit Card">Debit Card</option>
+              <option value="HDFC UPI">HDFC UPI</option>
+              <option value="HDFC Credit Card">HDFC Credit Card</option>
+              <option value="HDFC Debit Card">HDFC Debit Card</option>
+              <option value="HDFC NetBanking">HDFC NetBanking</option>
+              <option value="HDFC Bank Account">HDFC Bank Account</option>
               <option value="Cash">Cash</option>
-              <option value="UPI / Digital Wallet">UPI / Digital Wallet</option>
-              <option value="PayPal">PayPal</option>
-              <option value="Crypto / Other">Crypto / Other</option>
             </select>
           </div>
         </div>
@@ -877,8 +852,8 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="text-xs font-semibold text-slate-300">Monthly Spending Cap</label>
-          <input type="number" step="1" min="1" id="budgetAmountInput" required placeholder="e.g. 500" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono">
+          <label class="text-xs font-semibold text-slate-300">Monthly Spending Cap (₹)</label>
+          <input type="number" step="1" min="1" id="budgetAmountInput" required placeholder="e.g. 10000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono">
         </div>
 
         <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
@@ -910,8 +885,8 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="text-xs font-semibold text-slate-300">Target Amount</label>
-          <input type="number" step="10" min="1" id="goalTargetInput" required placeholder="e.g. 10000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono">
+          <label class="text-xs font-semibold text-slate-300">Target Amount (₹)</label>
+          <input type="number" step="10" min="1" id="goalTargetInput" required placeholder="e.g. 200000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono">
         </div>
 
         <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
@@ -927,272 +902,7 @@
     </div>
   </div>
 
-  <!-- Modal 4: Cloud Sync & Multi-Device Hub Modal -->
-  <div id="cloudSyncModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm items-center justify-center p-4">
-    <div class="modal-box w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl transition-all transform scale-95 opacity-0 max-h-[90vh] flex flex-col">
-      
-      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-        <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
-          </div>
-          <div>
-            <h3 class="text-lg font-bold text-slate-100">Cloud Sync & Multi-Device Hub</h3>
-            <p class="text-xs text-slate-400">Access your expenses from your phone, laptop, or any browser</p>
-          </div>
-        </div>
-        <button onclick="UI.closeModal('cloudSyncModal')" class="text-slate-400 hover:text-white p-1 text-xl font-bold">&times;</button>
-      </div>
-
-      <!-- Provider Tabs Header -->
-      <div class="flex items-center gap-2 border-b border-slate-800 pt-3 pb-1 overflow-x-auto text-xs font-semibold">
-        <button data-cloud-tab="firebase" class="px-3 py-2 border-b-2 border-indigo-500 text-indigo-400 transition-colors whitespace-nowrap">
-          🔥 Firebase (Google)
-        </button>
-        <button data-cloud-tab="supabase" class="px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap">
-          ⚡ Supabase (Postgres)
-        </button>
-        <button data-cloud-tab="gdrive" class="px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap">
-          📁 Google Drive
-        </button>
-        <button data-cloud-tab="deploy" class="px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap">
-          📱 Deploy to Phone
-        </button>
-      </div>
-
-      <!-- Tab Content Area (Scrollable) -->
-      <div class="flex-1 overflow-y-auto py-4 space-y-4 pr-1 text-xs">
-        
-        <!-- ================= TAB 1: FIREBASE ================= -->
-        <div id="cloudTab-firebase" class="cloud-tab-content space-y-4">
-          <div class="p-3.5 rounded-xl bg-indigo-950/30 border border-indigo-500/20 text-indigo-200 flex items-start gap-2.5">
-            <svg class="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <div>
-              <p class="font-semibold text-xs">Real-time Cloud Sync with Google Firestore</p>
-              <p class="text-[11px] text-slate-400 mt-0.5">Free 1 GB cloud storage. Changes on your phone sync instantly to your laptop without page refreshes.</p>
-            </div>
-          </div>
-
-          <!-- One Click Google Sign In -->
-          <div class="text-center py-2 space-y-3">
-            <button id="btnFirebaseGoogle" type="button" class="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl font-bold text-sm bg-white hover:bg-slate-100 text-slate-800 shadow-md transition-all">
-              <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
-              Sign In With Google
-            </button>
-            <span class="text-slate-500 font-medium">— OR SIGN IN WITH EMAIL —</span>
-          </div>
-
-          <!-- Email Login Form -->
-          <form id="formFirebaseEmail" class="space-y-3">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="font-semibold text-slate-300">Email Address</label>
-                <input type="email" id="fbEmailInput" placeholder="you@example.com" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100">
-              </div>
-              <div>
-                <label class="font-semibold text-slate-300">Password</label>
-                <input type="password" id="fbPassInput" placeholder="••••••••" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100">
-              </div>
-            </div>
-            <div class="flex items-center gap-2 pt-1">
-              <button type="submit" class="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-colors">
-                Sign In
-              </button>
-              <button type="button" id="btnFirebaseRegister" class="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold transition-colors">
-                Create Account
-              </button>
-            </div>
-          </form>
-
-          <!-- Firebase Config Collapsible -->
-          <details class="p-3 rounded-xl bg-slate-800/40 border border-slate-700/40 text-slate-300">
-            <summary class="font-semibold cursor-pointer text-xs text-indigo-300">⚙️ Custom Firebase Project Credentials (Optional)</summary>
-            <form id="formFirebaseConfig" class="mt-3 space-y-2.5">
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <div>
-                  <label class="text-[11px] text-slate-400">API Key</label>
-                  <input type="text" id="fbApiKey" placeholder="AIzaSy..." class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-mono text-[11px]">
-                </div>
-                <div>
-                  <label class="text-[11px] text-slate-400">Auth Domain</label>
-                  <input type="text" id="fbAuthDomain" placeholder="your-app.firebaseapp.com" class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-mono text-[11px]">
-                </div>
-                <div>
-                  <label class="text-[11px] text-slate-400">Project ID</label>
-                  <input type="text" id="fbProjectId" placeholder="your-app-id" class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-mono text-[11px]">
-                </div>
-                <div>
-                  <label class="text-[11px] text-slate-400">App ID</label>
-                  <input type="text" id="fbAppId" placeholder="1:123456:web:..." class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-mono text-[11px]">
-                </div>
-              </div>
-              <button type="submit" class="px-3 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium text-xs">Save Firebase Config</button>
-            </form>
-          </details>
-
-          <div class="flex items-center justify-between pt-2">
-            <button onclick="window.cloudSync.pushToActiveCloud(); UI.showToast('Manual sync triggered', 'info')" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600/30 font-medium">
-              Sync to Firebase Now
-            </button>
-            <button onclick="window.cloudSync.signOutFirebase()" class="text-rose-400 hover:text-rose-300">
-              Disconnect Firebase
-            </button>
-          </div>
-        </div>
-
-        <!-- ================= TAB 2: SUPABASE ================= -->
-        <div id="cloudTab-supabase" class="cloud-tab-content hidden space-y-4">
-          <div class="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-500/20 text-emerald-200 flex items-start gap-2.5">
-            <svg class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-            <div>
-              <p class="font-semibold text-xs">Supabase PostgreSQL Cloud Database</p>
-              <p class="text-[11px] text-slate-400 mt-0.5">Open-source SQL backend with Row Level Security (RLS) guaranteeing 100% private data isolation.</p>
-            </div>
-          </div>
-
-          <form id="formSupabaseAuth" class="space-y-3">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="font-semibold text-slate-300">Supabase Project URL</label>
-                <input type="url" id="supabaseUrlInput" placeholder="https://xyz.supabase.co" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 font-mono text-xs">
-              </div>
-              <div>
-                <label class="font-semibold text-slate-300">Anon Public Key</label>
-                <input type="text" id="supabaseKeyInput" placeholder="eyJhbGciOi..." class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 font-mono text-xs">
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="font-semibold text-slate-300">User Email</label>
-                <input type="email" id="supabaseEmailInput" placeholder="you@example.com" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100">
-              </div>
-              <div>
-                <label class="font-semibold text-slate-300">Password</label>
-                <input type="password" id="supabasePassInput" placeholder="••••••••" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100">
-              </div>
-            </div>
-
-            <div class="flex items-center gap-2 pt-1">
-              <button type="submit" class="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors">
-                Login with Supabase
-              </button>
-              <button type="button" id="btnSupabaseRegister" class="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold transition-colors">
-                Register New User
-              </button>
-            </div>
-          </form>
-
-          <!-- Supabase SQL Helper -->
-          <div class="p-3 rounded-xl bg-slate-800/40 border border-slate-700/40 text-slate-400">
-            <p class="font-semibold text-slate-200">First time setting up Supabase?</p>
-            <p class="text-[11px] mt-0.5">Run the pre-built SQL file <code class="text-emerald-400 font-mono">supabase-schema.sql</code> in your Supabase SQL Editor to create the table and security policies.</p>
-          </div>
-
-          <div class="flex items-center justify-between pt-2">
-            <button onclick="window.cloudSync.pushToSupabase(); UI.showToast('Pushed to Supabase', 'info')" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600/30 font-medium">
-              Sync to Supabase Now
-            </button>
-            <button onclick="window.cloudSync.signOutSupabase()" class="text-rose-400 hover:text-rose-300">
-              Disconnect Supabase
-            </button>
-          </div>
-        </div>
-
-        <!-- ================= TAB 3: GOOGLE DRIVE ================= -->
-        <div id="cloudTab-gdrive" class="cloud-tab-content hidden space-y-4">
-          <div class="p-3.5 rounded-xl bg-blue-950/30 border border-blue-500/20 text-blue-200 flex items-start gap-2.5">
-            <svg class="w-4 h-4 text-blue-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-            <div>
-              <p class="font-semibold text-xs">Direct Google Drive Sync ("Bring Your Own Cloud")</p>
-              <p class="text-[11px] text-slate-400 mt-0.5">Saves a private <code class="text-blue-300 font-mono">FinTrack_Pro_Vault.json</code> file inside your own personal Google Drive. Zero database required!</p>
-            </div>
-          </div>
-
-          <div class="space-y-3">
-            <div>
-              <label class="font-semibold text-slate-300">Google OAuth 2.0 Client ID</label>
-              <input type="text" id="gdriveClientIdInput" placeholder="123456789-xxxx.apps.googleusercontent.com" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 font-mono text-xs">
-              <p class="text-[11px] text-slate-500 mt-1">Obtained from Google Cloud Console > Credentials > Web Client.</p>
-            </div>
-
-            <button id="btnGDriveConnect" type="button" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors flex items-center justify-center gap-2">
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.01 1.99c-5.53 0-10 4.47-10 10 0 5.52 4.47 10 10 10s10-4.48 10-10c0-5.53-4.47-10-10-10zm-1.01 15.5l-4-4 1.41-1.41 2.59 2.58 6.59-6.59 1.41 1.42-8 8z"/></svg>
-              Authorize & Connect Google Drive
-            </button>
-
-            <div class="grid grid-cols-2 gap-3 pt-2">
-              <button id="btnGDriveBackup" type="button" class="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium">
-                ☁️ Backup Vault to Drive
-              </button>
-              <button id="btnGDriveRestore" type="button" class="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium">
-                📥 Restore Vault from Drive
-              </button>
-            </div>
-          </div>
-
-          <div class="flex items-center justify-end pt-2">
-            <button onclick="window.cloudSync.signOutGoogleDrive()" class="text-rose-400 hover:text-rose-300">
-              Disconnect Google Drive
-            </button>
-          </div>
-        </div>
-
-        <!-- ================= TAB 4: DEPLOY TO PHONE ================= -->
-        <div id="cloudTab-deploy" class="cloud-tab-content hidden space-y-4">
-          <div class="p-3.5 rounded-xl bg-violet-950/30 border border-violet-500/20 text-violet-200">
-            <p class="font-semibold text-xs">Get a Live URL on your Phone in 60 Seconds</p>
-            <p class="text-[11px] text-slate-400 mt-0.5">FinTrack Pro is 100% static and requires zero build steps. Deploy it for free on Vercel or GitHub Pages!</p>
-          </div>
-
-          <!-- Method A: Vercel -->
-          <div class="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="font-bold text-slate-200 text-sm flex items-center gap-2">
-                ▲ Option A: Vercel (Fastest - 30 seconds)
-              </span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">100% Free</span>
-            </div>
-            <ol class="list-decimal list-inside text-slate-300 space-y-1 text-xs">
-              <li>Go to <a href="https://vercel.com/new" target="_blank" class="text-indigo-400 underline font-semibold">vercel.com/new</a> and sign in.</li>
-              <li>Drag & drop the folder <code class="text-slate-200 bg-slate-800 px-1 py-0.5 rounded font-mono">D:\Myself\Money Manager</code> or link your GitHub repo.</li>
-              <li>Click <strong>Deploy</strong>. Vercel provides a free live HTTPS URL (e.g. <code class="text-indigo-300 font-mono">fintrack.vercel.app</code>) that you can open on your phone immediately!</li>
-            </ol>
-          </div>
-
-          <!-- Method B: GitHub Pages -->
-          <div class="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="font-bold text-slate-200 text-sm flex items-center gap-2">
-                🐙 Option B: GitHub Pages
-              </span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400">Built-in Actions</span>
-            </div>
-            <p class="text-xs text-slate-300">We've generated the complete <code class="text-slate-200 font-mono">.github/workflows/deploy.yml</code> workflow. Simply push this folder to your GitHub repo, and GitHub Pages will deploy it automatically!</p>
-          </div>
-
-          <!-- Phone PWA tip -->
-          <div class="p-3.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 flex items-start gap-2.5">
-            <span class="text-base">📲</span>
-            <div>
-              <p class="font-semibold text-xs">Turn it into a Phone App (PWA):</p>
-              <p class="text-[11px] text-slate-400 mt-0.5">Once you open your live URL on Safari (iPhone) or Chrome (Android), tap <strong>Share / Menu</strong> &rarr; <strong>"Add to Home Screen"</strong>. It will look and launch just like a native mobile app!</p>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <div class="pt-3 border-t border-slate-800 flex justify-end">
-        <button type="button" onclick="UI.closeModal('cloudSyncModal')" class="px-5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">
-          Close
-        </button>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- Modal 5: Gmail Expense Scanner & Auto-Import Modal -->
+  <!-- Modal 4: HDFC Bank Gmail Inbox Reader & Auto-Sync Modal -->
   <div id="gmailModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm items-center justify-center p-4">
     <div class="modal-box w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl transition-all transform scale-95 opacity-0 max-h-[92vh] flex flex-col">
       
@@ -1206,10 +916,10 @@
           </div>
           <div>
             <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2">
-              Gmail Expense Scanner & Auto-Import
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">Smart AI Parser</span>
+              HDFC Bank Gmail Reader
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">HDFC Filter Active</span>
             </h3>
-            <p class="text-xs text-slate-400">Scan recent and previous bank alerts, UPI receipts, and statements directly into your ledger</p>
+            <p class="text-xs text-slate-400">Reads your Gmail inbox and filters HDFC Bank alerts (UPI, Credit/Debit Card, NetBanking, Credits)</p>
           </div>
         </div>
         <button onclick="UI.closeModal('gmailModal')" class="text-slate-400 hover:text-white p-1 text-xl font-bold">&times;</button>
@@ -1222,7 +932,7 @@
         <div class="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-3">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <span class="font-bold text-slate-200 text-xs flex items-center gap-1.5">
-              <span>🔑 Google Account Connection</span>
+              <span>🔑 Step 1: Connect Gmail Account (Read-Only)</span>
             </span>
             <div id="gmailConnectionStatus">
               <span class="text-slate-400 text-xs">Not connected</span>
@@ -1240,30 +950,46 @@
               </button>
             </div>
           </div>
-          <p class="text-[11px] text-slate-500">Uses official Google Identity Services with read-only permission (<code class="text-slate-400 font-mono">gmail.readonly</code>). Your emails are parsed 100% locally on your machine and never sent to any server.</p>
+          <p class="text-[11px] text-slate-500">No external database or cloud storage is used. Your HDFC emails are read directly from Gmail in your browser (<code class="text-slate-400 font-mono">gmail.readonly</code>).</p>
         </div>
 
         <!-- Scan Configuration Bar -->
         <div class="p-4 rounded-2xl bg-slate-800/30 border border-slate-700/50 space-y-3">
-          <div class="font-bold text-slate-200 text-xs">🔎 Search & Timeframe Options</div>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="font-bold text-slate-200 text-xs">🔎 Step 2: Filter HDFC Bank Emails (Recent & Previous)</span>
+            <span class="text-[11px] font-mono text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-500/20">from:hdfcbank.net OR from:hdfcbank.com</span>
+          </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
             <!-- Timeframe selector -->
-            <div>
-              <label class="text-[11px] font-semibold text-slate-400">Select Timeframe</label>
+            <div class="sm:col-span-5">
+              <label class="text-[11px] font-semibold text-slate-400">Email History Range</label>
               <select id="gmailTimeframeSelect" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 font-medium cursor-pointer">
-                <option value="recent">Recent (Last 7 Days)</option>
-                <option value="30days" selected>Last 30 Days (Recommended)</option>
-                <option value="90days">Previous Emails: Last 90 Days</option>
-                <option value="all-previous">Previous Emails: Last 1 Year</option>
+                <option value="7days">Recent: Last 7 Days</option>
+                <option value="30days">Recent: Last 30 Days</option>
+                <option value="90days" selected>Previous: Last 90 Days (3 Months)</option>
+                <option value="180days">Previous: Last 6 Months</option>
+                <option value="1year">Previous: Last 1 Year</option>
+                <option value="all-history">All Previous HDFC Emails (Full Inbox)</option>
                 <option value="custom">Custom Date Range...</option>
               </select>
             </div>
 
-            <!-- Optional Bank / Merchant Keyword -->
-            <div class="sm:col-span-2">
-              <label class="text-[11px] font-semibold text-slate-400">Filter by Bank / Keyword (Optional)</label>
-              <input type="text" id="gmailCustomFilter" placeholder="e.g. HDFC, ICICI, SBI, PhonePe, Swiggy, Salary..." class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 placeholder-slate-500">
+            <!-- Max Emails Limit -->
+            <div class="sm:col-span-3">
+              <label class="text-[11px] font-semibold text-slate-400">Max Emails to Scan</label>
+              <select id="gmailMaxLimitSelect" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 font-medium cursor-pointer">
+                <option value="50">Up to 50 emails</option>
+                <option value="100" selected>Up to 100 emails</option>
+                <option value="250">Up to 250 emails</option>
+                <option value="500">Up to 500 emails</option>
+              </select>
+            </div>
+
+            <!-- Optional Sub-Filter Keyword -->
+            <div class="sm:col-span-4">
+              <label class="text-[11px] font-semibold text-slate-400">Extra Keyword Filter (Optional)</label>
+              <input type="text" id="gmailCustomFilter" placeholder="e.g. UPI, Swiggy, Credit Card..." class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 placeholder-slate-500">
             </div>
           </div>
 
@@ -1279,11 +1005,16 @@
             </div>
           </div>
 
-          <!-- Trigger Scan Button -->
-          <div class="pt-1">
-            <button id="btnStartGmailScan" type="button" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-bold transition-all shadow-md shadow-rose-600/20 flex items-center justify-center gap-2">
+          <!-- Auto-Import Checkbox & Trigger Scan Button -->
+          <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
+            <label class="flex items-center gap-2 cursor-pointer select-none text-slate-300">
+              <input type="checkbox" id="gmailAutoImportCheckbox" checked class="rounded border-slate-600 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer">
+              <span class="font-medium text-xs">Automatically add new HDFC transactions to Dashboard</span>
+            </label>
+
+            <button id="btnStartGmailScan" type="button" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-bold transition-all shadow-md shadow-rose-600/20 flex items-center justify-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-              Scan Emails for Financial Transactions
+              Scan HDFC Bank Emails Now
             </button>
           </div>
         </div>
@@ -1291,7 +1022,7 @@
         <!-- Scan Progress Indicator (Hidden by default) -->
         <div id="gmailScanProgress" class="hidden p-3.5 rounded-xl bg-slate-800/60 border border-slate-700 space-y-2">
           <div class="flex items-center justify-between text-xs">
-            <span id="gmailProgressText" class="text-slate-300 font-medium">Scanning emails...</span>
+            <span id="gmailProgressText" class="text-slate-300 font-medium">Scanning HDFC emails...</span>
             <span class="text-indigo-400 font-mono animate-pulse">Processing</span>
           </div>
           <div class="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
@@ -1310,23 +1041,23 @@
         </div>
 
         <!-- Detected Results Container -->
-        <div id="gmailResultsContainer" class="min-h-[140px] max-h-[300px] overflow-y-auto space-y-2">
+        <div id="gmailResultsContainer" class="min-h-[140px] max-h-[280px] overflow-y-auto space-y-2">
           <div class="py-10 text-center text-slate-500">
-            <p class="font-medium text-slate-400">Click "Scan Emails for Financial Transactions" above to begin</p>
-            <p class="text-xs text-slate-500 mt-1">Or use the quick manual paste box below to test without OAuth.</p>
+            <p class="font-medium text-slate-400">Authorize Gmail and click "Scan HDFC Bank Emails Now" above</p>
+            <p class="text-xs text-slate-500 mt-1">Automatically extracts Amount (₹), Debit/Credit, Merchant/VPA, Date, and HDFC Channel.</p>
           </div>
         </div>
 
-        <!-- Zero-OAuth Manual Paste Fallback -->
+        <!-- Manual Paste HDFC Alert Tester -->
         <details class="p-3.5 rounded-2xl bg-slate-800/30 border border-slate-700/40 text-slate-300">
           <summary class="font-semibold cursor-pointer text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5">
-            📋 Quick Test: Paste Bank / UPI Email or SMS Text Directly (No Google Login Required)
+            📋 Paste an HDFC Bank Email Text Directly (Optional Manual Parse)
           </summary>
           <div class="mt-3 space-y-2.5">
-            <p class="text-[11px] text-slate-400">Copy any transaction alert email (e.g. from HDFC, SBI, ICICI, PhonePe, Swiggy, Paytm) and paste here to test the smart parser instantly:</p>
-            <textarea id="manualEmailTextarea" rows="3" placeholder="e.g. 'Dear Customer, INR 1,250.00 has been debited from your account **1234 on 08-Oct-26 towards Swiggy UPI. Available balance: INR 45,200.00'" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-600 font-mono"></textarea>
+            <p class="text-[11px] text-slate-400">Paste any raw HDFC Bank email or SMS alert below to parse and add it:</p>
+            <textarea id="manualEmailTextarea" rows="3" placeholder="e.g. 'Dear Customer, Rs.1,250.00 has been debited from account **1234 to VPA swiggy@axisbank on 12-10-26. Your UPI transaction reference number is 628512345678.'" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-600 font-mono"></textarea>
             <button id="btnParseManualEmail" type="button" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-colors">
-              Extract & Review Entry
+              Extract HDFC Alert
             </button>
           </div>
         </details>
@@ -1350,7 +1081,6 @@
   <script src="js/transactions.js"></script>
   <script src="js/budgets.js"></script>
   <script src="js/exportImport.js"></script>
-  <script src="js/cloudSync.js"></script>
   <script src="js/gmailScanner.js"></script>
   <script src="js/app.js"></script>
 
